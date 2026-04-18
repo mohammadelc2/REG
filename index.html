@@ -1,0 +1,1839 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>نظام إدارة العدادات والمشتركين - الإصدار النهائي</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lz-string@1.4.4/libs/lz-string.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/idb@8/build/umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; padding: 16px; direction: rtl; }
+        .card { background: white; border-radius: 20px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .btn { background: #4a6ee0; color: white; border: none; padding: 12px 20px; border-radius: 30px; font-size: 1rem; cursor: pointer; width: 100%; margin-top: 10px; transition: 0.2s; text-align: center; display: inline-block; font-weight: 500; }
+        .btn-danger { background: #dc3545; }
+        .btn-success { background: #28a745; }
+        .btn-secondary { background: #6c757d; }
+        .btn-small { padding: 8px 16px; font-size: 0.85rem; width: auto; margin-top: 0; }
+        .flex-buttons { display: flex; gap: 12px; flex-wrap: wrap; margin: 10px 0; }
+        .flex-buttons .btn { flex: 1 1 auto; min-width: 120px; margin-top: 0; }
+        @media (max-width: 600px) {
+            .flex-buttons .btn { min-width: 100%; }
+        }
+        input, select, textarea { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 12px; font-size: 1rem; font-family: inherit; }
+        .hidden { display: none; }
+        .flex { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .toast { position: fixed; bottom: 20px; left: 20px; right: 20px; background: #333; color: white; padding: 12px; border-radius: 30px; text-align: center; z-index: 9999; display: none; }
+        .error-box { background: #f8d7da; color: #721c24; padding: 10px; border-radius: 12px; margin-bottom: 10px; border-right: 4px solid #dc3545; }
+        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 10000; }
+        .loading-spinner { background: white; padding: 20px; border-radius: 20px; text-align: center; }
+        .filters-container { background: #f8f9fa; padding: 15px; border-radius: 16px; margin-bottom: 20px; border: 1px solid #e0e0e0; }
+        .filter-group { margin-bottom: 10px; }
+        .filter-group label { font-weight: bold; display: block; margin-bottom: 5px; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 20000; }
+        #errorModal { z-index: 30000; }
+        #autoModal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #28a745;
+            color: white;
+            padding: 20px 40px;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            text-align: center;
+            z-index: 35000;
+            display: none;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            white-space: nowrap;
+            direction: rtl;
+        }
+        @media (max-width: 600px) {
+            #autoModal { white-space: normal; width: 80%; font-size: 1rem; padding: 15px; border-radius: 30px; }
+        }
+        .modal-content { background: white; border-radius: 24px; width: 90%; max-width: 700px; max-height: 85%; overflow-y: auto; padding: 20px; direction: rtl; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .modal-header { font-size: 1.4rem; font-weight: bold; margin-bottom: 15px; border-bottom: 2px solid #4a6ee0; padding-bottom: 8px; color: #2c3e50; position: sticky; top: 0; background: white; z-index: 1; }
+        .modal-body { line-height: 1.6; }
+        .modal-row { display: flex; padding: 8px 0; border-bottom: 1px solid #eee; }
+        .modal-label { width: 35%; font-weight: bold; color: #2c3e50; }
+        .modal-value { width: 65%; word-break: break-word; color: #1a2a3a; }
+        .modal-close { background: #4a6ee0; color: white; border: none; padding: 10px; border-radius: 30px; margin-top: 15px; width: 100%; cursor: pointer; font-size: 1rem; }
+        .share-btn { background: #FF4081; color: white; border: none; padding: 6px 12px; border-radius: 30px; cursor: pointer; font-size: 0.8rem; }
+        .pagination { display: flex; justify-content: center; gap: 15px; margin-top: 15px; }
+        .log-entry { border: 1px solid #e0e0e0; border-radius: 16px; padding: 12px; margin-bottom: 15px; background: #f9f9f9; }
+        .log-detail-row { display: flex; padding: 4px 0; border-bottom: 1px solid #eee; }
+        .log-detail-label { width: 35%; font-weight: bold; color: #2c3e50; }
+        .log-detail-value { width: 65%; color: #1a2a3a; }
+        .log-actions { display: flex; gap: 10px; margin-top: 12px; justify-content: flex-end; }
+        @media (max-width: 600px) { .flex { flex-direction: column; } .modal-label, .modal-value, .log-detail-label, .log-detail-value { width: 100%; } }
+        .meter-field { margin-bottom: 12px; }
+        .meter-field label { font-weight: bold; display: block; margin-bottom: 4px; }
+        .meter-results { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+        .meter-result-box { background: #1e3a5f; color: white; padding: 12px; border-radius: 16px; text-align: center; }
+        .timer-display { font-family: monospace; font-size: 2rem; text-align: center; background: #000; color: #0f0; padding: 8px; border-radius: 16px; margin-top: 10px; }
+        .user-list-item { cursor: pointer; transition: 0.2s; background: white; margin-bottom: 8px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; padding: 10px; }
+        .filter-option-count { font-size: 0.8rem; color: #666; margin-right: 5px; }
+        .phase-switch-horizontal { display: flex; gap: 15px; justify-content: center; margin-bottom: 20px; }
+        .phase-switch-horizontal label { background: #e3edf7; padding: 8px 16px; border-radius: 40px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+        .three-phase-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+        .warning-message { background: #fff3cd; color: #856404; padding: 8px; border-radius: 12px; margin: 10px 0; border-right: 4px solid #ffc107; }
+        .subscriber-info-card { background: #e3f2fd; padding: 12px; border-radius: 16px; margin-bottom: 16px; }
+        .subscriber-info-card p { margin: 4px 0; }
+        .main-menu-buttons { margin-top: 20px; }
+        .logs-buttons { margin-top: 15px; border-top: 1px solid #e0e0e0; padding-top: 15px; display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; }
+        .logs-buttons .btn { width: auto; margin-top: 0; }
+        .support-btn { background: #FF9800; color: white; margin-bottom: 15px; position: relative; }
+        .notification-badge { background: red; color: white; border-radius: 50%; padding: 2px 6px; font-size: 0.7rem; margin-right: 5px; display: inline-block; }
+        .support-btn .badge { position: absolute; top: -8px; right: -8px; background: red; color: white; border-radius: 50%; padding: 2px 6px; font-size: 0.7rem; }
+        .admin-notification-btn { background: #FF9800; color: white; padding: 8px 15px; border-radius: 30px; display: flex; align-items: center; gap: 8px; margin-top: 10px; cursor: pointer; width: 100%; border: none; font-weight: bold; justify-content: center; }
+        /* أنماط المحادثة - فقاعات يمين ويسار */
+        .chat-container { display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto; padding: 10px; background: #efeae2; }
+        .message-bubble { max-width: 75%; padding: 8px 12px; border-radius: 18px; margin: 4px 0; word-wrap: break-word; position: relative; clear: both; }
+        .user-bubble { background-color: #dcf8c5; float: right; border-bottom-right-radius: 4px; text-align: right; }
+        .admin-bubble { background-color: #e5e5ea; float: left; border-bottom-left-radius: 4px; text-align: left; }
+        .message-sender { font-size: 0.7rem; color: #555; margin-bottom: 2px; font-weight: bold; }
+        .message-text { font-size: 0.95rem; line-height: 1.4; white-space: pre-wrap; }
+        .message-time { font-size: 0.65rem; color: #999; margin-top: 4px; text-align: left; }
+        .message-status { font-size: 0.7rem; margin-left: 4px; }
+        .typing-indicator { background-color: #e5e5ea; display: inline-block; padding: 8px 12px; border-radius: 18px; font-size: 0.8rem; color: #666; margin: 4px 0; clear: both; float: left; }
+        .chat-item { transition: background 0.2s; display: flex; justify-content: space-between; align-items: center; padding: 12px; }
+        .chat-item:hover { background: #f0f0f0; }
+        .conv-unread { background-color: #ffeb3b; border-radius: 20px; padding: 2px 8px; font-size: 0.7rem; margin-right: 8px; }
+        .logout-user-btn { background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 20px; cursor: pointer; font-size: 0.7rem; }
+        .error-modal-message { color: #721c24; background: #f8d7da; padding: 15px; border-radius: 12px; margin: 10px 0; text-align: center; }
+        .chat-input-wrapper { display: flex; gap: 8px; align-items: flex-end; background: white; padding: 8px; border-radius: 30px; margin-top: 10px; }
+        .chat-input-wrapper textarea { flex: 1; border: none; outline: none; padding: 8px 12px; font-size: 1rem; resize: none; font-family: inherit; max-height: 120px; min-height: 40px; background: transparent; margin: 0; }
+        .chat-input-wrapper button { background: #4a6ee0; border: none; border-radius: 30px; padding: 8px 16px; color: white; cursor: pointer; font-size: 0.9rem; transition: 0.2s; }
+        .delete-msg-btn { background: #dc3545; border: none; border-radius: 50%; width: 24px; height: 24px; font-size: 12px; color: white; cursor: pointer; margin-right: 8px; }
+    </style>
+</head>
+<body>
+
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-spinner">⏳ جاري تحميل البيانات...<br>الرجاء الانتظار</div>
+</div>
+
+<!-- نافذة منبثقة للرسائل التحذيرية والخطأ -->
+<div id="errorModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-header" id="errorModalTitle">تنبيه</div>
+        <div class="modal-body" id="errorModalMessage"></div>
+        <button class="modal-close" onclick="closeModal('errorModal')">موافق</button>
+    </div>
+</div>
+
+<!-- نافذة للرسائل الناجحة تختفي تلقائياً -->
+<div id="autoModal"></div>
+
+<!-- النوافذ المنبثقة العامة -->
+<div id="resultModal" class="modal-overlay"><div class="modal-content"><div class="modal-header">نتيجة البحث</div><div class="modal-body" id="resultModalBody"></div><div class="flex" style="justify-content: center;"><button class="share-btn" id="shareResultBtn">📤 مشاركة النتيجة</button></div><button class="modal-close" onclick="closeModal('resultModal')">إغلاق</button></div></div>
+<div id="searchLogsModal" class="modal-overlay"><div class="modal-content"><div class="modal-header">سجل عمليات البحث</div><div class="modal-body" id="searchLogsModalBody"></div><div class="pagination" id="searchLogsPagination"></div><button class="modal-close" onclick="closeModal('searchLogsModal')">إغلاق</button></div></div>
+<div id="meterLogsModal" class="modal-overlay"><div class="modal-content"><div class="modal-header">سجل فحوصات العداد</div><div class="modal-body" id="meterLogsModalBody"></div><div class="pagination" id="meterLogsPagination"></div><button class="modal-close" onclick="closeModal('meterLogsModal')">إغلاق</button></div></div>
+<div id="userManageModal" class="modal-overlay"><div class="modal-content"><div class="modal-header">إدارة المستخدم</div><div class="modal-body" id="userManageModalBody"></div><button class="modal-close" onclick="closeModal('userManageModal')">إغلاق</button></div></div>
+<div id="userLogsModal" class="modal-overlay"><div class="modal-content"><div class="modal-header" id="userLogsModalTitle">سجلات المستخدم</div><div class="modal-body" id="userLogsModalBody"></div><div class="pagination" id="userLogsPagination"></div><button class="modal-close" onclick="closeModal('userLogsModal')">إغلاق</button></div></div>
+<div id="userSessionsModal" class="modal-overlay"><div class="modal-content"><div class="modal-header">جلسات المستخدم وأجهزته</div><div class="modal-body" id="userSessionsModalBody"></div><div class="pagination" id="userSessionsPagination"></div><button class="modal-close" onclick="closeModal('userSessionsModal')">إغلاق</button></div></div>
+
+<!-- نافذة الدعم الفني (المحادثة) للمستخدمين -->
+<div id="chatModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 800px;">
+        <div class="modal-header">💬 تواصل مع الدعم</div>
+        <div class="chat-container" id="chatMessages" style="background: #efeae2; height: 400px;"></div>
+        <div class="chat-input-wrapper">
+            <textarea id="chatInput" placeholder="اكتب رسالتك هنا..." rows="1"></textarea>
+            <button id="sendChatBtn">إرسال</button>
+        </div>
+        <button class="modal-close" onclick="closeModal('chatModal')">إغلاق</button>
+    </div>
+</div>
+
+<!-- نافذة إدارة المحادثات للأدمن (للاستخدام الداخلي عبر زر مراسلة) -->
+<div id="adminChatModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 800px;">
+        <div class="modal-header">إدارة المحادثات <span id="adminChatNotification" class="notification-badge" style="display: none;">0</span></div>
+        <div id="adminChatList" class="chat-container" style="max-height: 400px; overflow-y: auto; background: white;"></div>
+        <div id="adminChatDetail" style="margin-top: 15px;"></div>
+        <button class="modal-close" onclick="closeAdminChatDetail(); closeModal('adminChatModal');">إغلاق</button>
+    </div>
+</div>
+
+<!-- نافذة إدخال اسم المستخدم للزائر قبل المحادثة -->
+<div id="visitorNameModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">🔐 التحقق من المستخدم</div>
+        <div class="modal-body">
+            <input type="text" id="visitorNameInput" placeholder="أدخل اسم المستخدم الخاص بك" style="width: 100%;">
+            <button id="verifyVisitorNameBtn" class="btn btn-success" style="margin-top: 10px;">تحقق وفتح المحادثة</button>
+        </div>
+        <button class="modal-close" onclick="closeModal('visitorNameModal')">إلغاء</button>
+    </div>
+</div>
+
+<!-- تسجيل الدخول -->
+<div id="loginPage" class="card" style="max-width: 400px; margin: 50px auto;">
+    <button id="openChatBtnLogin" class="btn support-btn">💬 تواصل مع الدعم</button>
+    <h2>تسجيل الدخول</h2>
+    <input type="text" id="loginUsername" placeholder="اسم المستخدم">
+    <input type="password" id="loginPassword" placeholder="كلمة المرور">
+    <label><input type="checkbox" id="rememberCheckbox"> تذكرني</label>
+    <button id="doLoginBtn" class="btn">دخول</button>
+    <div id="loginError" class="error-box" style="display:none;"></div>
+</div>
+
+<div id="mainMenu" class="hidden" style="max-width: 600px; margin: 20px auto;">
+    <div class="card">
+        <div class="flex" style="justify-content: space-between;">
+            <h2 id="welcomeMsg"></h2>
+        </div>
+        <div class="main-menu-buttons">
+            <button id="goToSearchBtn" class="btn">🔍 محرك البحث</button>
+            <button id="goToMeterBtn" class="btn">⚡ حساب مصروف عداد</button>
+            <button id="adminDashboardBtn" class="btn btn-success hidden">📊 لوحة التحكم</button>
+        </div>
+        <button id="openChatBtnMenu" class="btn support-btn" style="margin-top: 10px;">💬 تواصل مع الدعم <span class="badge" style="display: none;"></span></button>
+        <div id="adminNotificationContainer" class="hidden" style="margin-top: 10px;"></div>
+        <div class="logs-buttons">
+            <button id="showSearchLogsFromMenu" class="btn btn-secondary">📋 سجل عملياتي (بحث)</button>
+            <button id="showMeterLogsFromMenu" class="btn btn-secondary">📋 سجل فحوصاتي (عداد)</button>
+        </div>
+    </div>
+</div>
+
+<div id="searchPage" class="hidden card" style="max-width: 900px; margin: 20px auto;">
+    <h3>محرك البحث</h3>
+    <div class="flex">
+        <select id="searchType" style="flex:1;"><option value="رقم المشترك">رقم المشترك</option><option value="اسم المشترك">الاسم الثلاثي</option></select>
+        <input type="text" id="searchInput" placeholder="أدخل قيمة البحث" style="flex:2;">
+        <button id="searchButton" class="btn">بحث</button>
+    </div>
+    <div id="filtersContainer" class="filters-container hidden">
+        <div class="filter-group"><label>القرية:</label><select id="villageFilter"></select></div>
+        <div class="filter-group"><label>نوع العداد:</label><select id="meterTypeFilter"></select></div>
+        <div class="filter-group"><label>نوع التعرفة:</label><select id="tariffFilter"></select></div>
+        <button id="resetFiltersBtn" class="btn btn-secondary">إعادة تعيين الفلاتر</button>
+    </div>
+    <button id="backToMenuFromSearch" class="btn" style="margin-top:10px;">🏠 العودة للقائمة</button>
+</div>
+
+<div id="meterPage" class="hidden card" style="max-width: 900px; margin: 20px auto;">
+    <h3>فحص عداد</h3>
+    <div class="phase-switch-horizontal">
+        <label><input type="radio" name="phase" value="single" checked> أحادي الطور</label>
+        <label><input type="radio" name="phase" value="three"> ثلاثي الطور</label>
+    </div>
+    <div class="meter-field">
+        <label>رقم العداد</label>
+        <input type="text" id="meterNumber" placeholder="أدخل رقم المشترك">
+    </div>
+    <div id="subscriberInfo" class="subscriber-info-card hidden"></div>
+    <div id="phaseMismatchWarning" class="warning-message hidden"></div>
+    
+    <div id="singlePhaseDiv">
+        <div class="flex" style="gap: 15px;">
+            <div class="meter-field" style="flex:1;"><label>الفولت (V)</label><input type="number" id="voltage" step="any" placeholder="الجهد"></div>
+            <div class="meter-field" style="flex:1;"><label>الأمبير (A)</label><input type="number" id="current" step="any" placeholder="التيار"></div>
+        </div>
+        <div class="meter-field"><label>معامل القدرة (PF)</label><input type="number" id="pf" step="any" min="0.1" max="1" value="1"></div>
+    </div>
+    
+    <div id="threePhaseDiv" class="hidden">
+        <div class="three-phase-grid">
+            <div class="meter-field"><label>الفولت L1 (V₁)</label><input type="number" id="v1" step="any" placeholder="V1"></div>
+            <div class="meter-field"><label>الفولت L2 (V₂)</label><input type="number" id="v2" step="any" placeholder="V2"></div>
+            <div class="meter-field"><label>الفولت L3 (V₃)</label><input type="number" id="v3" step="any" placeholder="V3"></div>
+        </div>
+        <div class="three-phase-grid">
+            <div class="meter-field"><label>الأمبير I₁ (A)</label><input type="number" id="i1" step="any" placeholder="I1"></div>
+            <div class="meter-field"><label>الأمبير I₂ (A)</label><input type="number" id="i2" step="any" placeholder="I2"></div>
+            <div class="meter-field"><label>الأمبير I₃ (A)</label><input type="number" id="i3" step="any" placeholder="I3"></div>
+        </div>
+        <div class="meter-field"><label>معامل القدرة (PF)</label><input type="number" id="pf3" step="any" min="0.1" max="1" value="1"></div>
+    </div>
+    
+    <div class="meter-field"><label>الوقت (دقائق)</label><input type="number" id="timeMin" step="any"></div>
+    <div class="meter-field"><label>الرصيد الموجود (kW)</label><input type="number" id="balance" step="any"></div>
+    <div class="meter-results" id="meterResults"></div>
+    <button id="saveMeterBtn" class="btn">حفظ الفحص وبدء المؤقت</button>
+    <div class="timer-display" id="timerDisplay">00:00</div>
+    <button id="stopTimerBtn" class="btn btn-danger">إيقاف المؤقت</button>
+    <button id="clearMeterBtn" class="btn">مسح الحقول</button>
+    <button id="backToMenuFromMeter" class="btn" style="margin-top:10px;">🏠 العودة للقائمة</button>
+</div>
+
+<div id="adminPage" class="hidden card" style="max-width: 800px; margin: 20px auto;">
+    <h3>لوحة المدير</h3>
+    <button id="uploadExcelBtn" class="btn">📂 رفع ملف Excel شهري</button>
+    <!-- تم إزالة زر إدارة محادثات الدعم من هنا -->
+    <div id="usersList" style="margin-top: 15px;"></div>
+    <button id="backToMenuFromAdmin" class="btn" style="margin-top:10px;">🏠 العودة للقائمة</button>
+</div>
+
+<script>
+// ==================== دوال عامة ====================
+function closeModal(modalId) { document.getElementById(modalId).style.display = 'none'; }
+function closeAdminChatDetail() { 
+    document.getElementById('adminChatDetail').innerHTML = ''; 
+    if (window.adminChannel) { mySupabase.removeChannel(window.adminChannel); window.adminChannel = null; }
+    if (window.adminPollInterval) clearInterval(window.adminPollInterval);
+    window.adminCurrentConvId = null;
+    // إعادة إظهار قائمة المحادثات عند الإغلاق
+    document.getElementById('adminChatList').style.display = 'block';
+}
+function showAutoModal(message) {
+    const modal = document.getElementById('autoModal');
+    modal.innerText = message;
+    modal.style.display = 'block';
+    setTimeout(() => { modal.style.display = 'none'; }, 2000);
+}
+function showErrorModal(message, title = '❌ خطأ') {
+    document.getElementById('errorModalTitle').innerText = title;
+    document.getElementById('errorModalMessage').innerHTML = `<div class="error-modal-message">${message}</div>`;
+    document.getElementById('errorModal').style.display = 'flex';
+}
+function showToast(msg, isError = false) {
+    if (isError) showErrorModal(msg);
+    else showAutoModal(msg);
+}
+function showError(message) { showErrorModal(message); }
+function showLoading(show) { document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none'; }
+
+// ==================== إعداد Supabase ====================
+const SUPABASE_URL = 'https://wzkcuryzvcmbehmgbduy.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable__LJ0CqxtXM05SmlA6uNFkg_HI8zkuPh';
+const mySupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentUser = null;
+let excelData = [];
+let metersMap = new Map();
+let namesMap = new Map();
+let timerInterval = null, timerSeconds = 0;
+let currentVersion = null;
+let currentSearchResults = [];
+let currentSearchResultIndex = 0;
+let currentSearchLogsPage = 1, currentMeterLogsPage = 1, currentUserLogsPage = 1, currentSessionsPage = 1;
+let currentUserLogsData = [], currentUserLogsType = '', currentSessionsData = [];
+let globalSearchLogs = [], globalMeterLogs = [];
+let userStatusPollInterval = null;
+
+// متغيرات الدعم والمحادثة
+let visitorToken = localStorage.getItem('visitor_token');
+if (!visitorToken) {
+    visitorToken = 'visitor_' + crypto.randomUUID();
+    localStorage.setItem('visitor_token', visitorToken);
+}
+let currentConversationId = null;
+let currentGuestUserId = null;
+let currentGuestUserName = null;
+window.adminCurrentConvId = null;
+let chatChannel = null;
+let chatPollInterval = null;
+window.adminChannel = null;
+window.adminPollInterval = null;
+let currentMessagesPage = 1;
+let hasMoreMessages = true;
+let isLoadingMessages = false;
+
+// ==================== دوال التواريخ والوقت المحلي ====================
+function getLocalDateTimeString() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+function formatMessageTime(dateStr) {
+    if (!dateStr) return '';
+    if (typeof dateStr === 'string' && dateStr.includes(' ')) {
+        const timePart = dateStr.split(' ')[1];
+        const [hours, minutes] = timePart.split(':');
+        return `${hours}:${minutes}`;
+    }
+    return '';
+}
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&';
+        if (m === '<') return '<';
+        if (m === '>') return '>';
+        return m;
+    });
+}
+
+function excelSerialDateToDate(serial) {
+    if (typeof serial !== 'number') return serial;
+    const utc_days = Math.floor(serial - 25569);
+    const date = new Date(utc_days * 86400000);
+    const year = date.getFullYear(), month = String(date.getMonth()+1).padStart(2,'0'), day = String(date.getDate()).padStart(2,'0');
+    return `${year}-${month}-${day}`;
+}
+function processExcelValue(value) {
+    if (value == null || value === '') return '';
+    if (typeof value === 'number' && value > 30000 && value < 50000) return excelSerialDateToDate(value);
+    if (value instanceof Date) return value.toISOString().split('T')[0];
+    return String(value);
+}
+function extractNumeric(str) {
+    if (!str) return '';
+    return String(str).replace(/\D/g, '');
+}
+
+// ==================== IndexedDB ====================
+async function initDB() {
+    return await idb.openDB('MeterDB', 1, {
+        upgrade(db) {
+            if (!db.objectStoreNames.contains('meters')) db.createObjectStore('meters', { keyPath: 'meter_id' });
+            if (!db.objectStoreNames.contains('metadata')) db.createObjectStore('metadata', { keyPath: 'key' });
+        }
+    });
+}
+async function loadDataFromDB() {
+    try {
+        const db = await initDB();
+        const all = await db.getAll('meters');
+        if (all && all.length) {
+            excelData = all; buildMaps(all);
+            const ver = await db.get('metadata', 'version');
+            currentVersion = ver ? ver.value : null;
+            return true;
+        }
+        return false;
+    } catch(e) { console.warn(e); return false; }
+}
+function buildMaps(data) {
+    metersMap.clear(); namesMap.clear();
+    for (const rec of data) {
+        const originalId = rec['رقم المشترك'] || rec.meter_id;
+        if (originalId) {
+            const numericId = extractNumeric(originalId);
+            metersMap.set(numericId, rec);
+            metersMap.set(originalId, rec);
+        }
+        const name = rec['اسم المشترك'];
+        if (name) {
+            if (!namesMap.has(name)) namesMap.set(name, []);
+            namesMap.get(name).push(rec);
+        }
+    }
+    excelData = data;
+}
+
+// ==================== عمليات Supabase ====================
+async function getLatestVersionFromServer() {
+    const { data, error } = await mySupabase.from('metadata').select('value').eq('key', 'version').single();
+    if (error || !data) return null;
+    return data.value;
+}
+async function downloadAndStoreData(version) {
+    showLoading(true);
+    try {
+        const url = `${SUPABASE_URL}/storage/v1/object/public/monthly-data/data_v${version}.json.gz`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('فشل تحميل الملف');
+        const compressed = await response.arrayBuffer();
+        const decompressed = pako.ungzip(new Uint8Array(compressed), { to: 'string' });
+        let records = JSON.parse(decompressed);
+        records = records.map(row => { const newRow = {}; for (const [key, val] of Object.entries(row)) { if (key.includes('تاريخ') || key.includes('شحن')) newRow[key] = processExcelValue(val); else newRow[key] = val; } return newRow; });
+        const db = await initDB();
+        const tx = db.transaction(['meters','metadata'], 'readwrite');
+        await tx.objectStore('meters').clear();
+        for (const rec of records) { if (!rec.meter_id && rec['رقم المشترك']) rec.meter_id = rec['رقم المشترك']; await tx.objectStore('meters').put(rec); }
+        await tx.objectStore('metadata').put({ key: 'version', value: version });
+        await tx.done;
+        buildMaps(records);
+        currentVersion = version;
+        showToast('تم تحديث البيانات بنجاح');
+        return true;
+    } catch(e) { showErrorModal(e.message, 'فشل التحميل'); return false; } finally { showLoading(false); }
+}
+async function checkForUpdates() {
+    if (!currentUser) return;
+    const serverVersion = await getLatestVersionFromServer();
+    if (serverVersion && serverVersion !== currentVersion) { showToast(`تحديث جديد (الإصدار ${serverVersion}) جاري التحميل...`); await downloadAndStoreData(serverVersion); }
+}
+
+// ==================== جمع معلومات الجهاز ====================
+async function getDetailedDeviceInfo() {
+    const userAgent = navigator.userAgent;
+    const platform = navigator.platform;
+    const language = navigator.language;
+    const screenWidth = screen.width;
+    const screenHeight = screen.height;
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const online = navigator.onLine;
+    const hardwareConcurrency = navigator.hardwareConcurrency || 'غير معروف';
+    const deviceMemory = navigator.deviceMemory || 'غير معروف';
+    
+    let deviceModel = 'غير معروف';
+    let osName = 'غير معروف';
+    let osVersion = 'غير معروف';
+    let browserName = 'غير معروف';
+    let browserVersion = 'غير معروف';
+    
+    const androidMatch = userAgent.match(/Android[\s/]+([\d.]+)/);
+    if (androidMatch) {
+        osName = 'Android';
+        osVersion = androidMatch[1];
+        let modelMatch = userAgent.match(/;\s([^;]+)\sBuild/);
+        if (!modelMatch) modelMatch = userAgent.match(/Android\s[\d.]+\;\s([^;)]+)(?:\)|\sBuild)/);
+        if (!modelMatch) {
+            const parts = userAgent.split(';');
+            for (let i = 0; i < parts.length; i++) {
+                if (parts[i].includes('Android') && parts[i+1] && parts[i+1].trim()) {
+                    modelMatch = [null, parts[i+1].trim()]; break;
+                }
+            }
+        }
+        if (modelMatch && modelMatch[1]) deviceModel = modelMatch[1].trim();
+        else {
+            const parenMatch = userAgent.match(/\(([^)]+)\)/);
+            if (parenMatch) {
+                const parts = parenMatch[1].split(';');
+                if (parts.length >= 3) deviceModel = parts[2].trim();
+            }
+        }
+    }
+    const iOSMatch = userAgent.match(/OS\s([\d_]+)\slike\sMac/);
+    if (iOSMatch) {
+        osName = 'iOS';
+        osVersion = iOSMatch[1].replace(/_/g, '.');
+        const iPhoneMatch = userAgent.match(/iPhone/i);
+        const iPadMatch = userAgent.match(/iPad/i);
+        deviceModel = iPhoneMatch ? 'iPhone' : (iPadMatch ? 'iPad' : 'iOS device');
+    }
+    if (userAgent.indexOf('Windows NT') !== -1) {
+        osName = 'Windows';
+        const winMatch = userAgent.match(/Windows NT ([\d.]+)/);
+        if (winMatch) osVersion = winMatch[1];
+    }
+    if (userAgent.indexOf('Mac OS X') !== -1 && !iOSMatch) {
+        osName = 'macOS';
+        const macMatch = userAgent.match(/Mac OS X ([\d_]+)/);
+        if (macMatch) osVersion = macMatch[1].replace(/_/g, '.');
+    }
+    if (userAgent.indexOf('Linux') !== -1 && !androidMatch) osName = 'Linux';
+    
+    if (userAgent.indexOf('Chrome') !== -1 && userAgent.indexOf('Edg') === -1) {
+        browserName = 'Chrome';
+        const match = userAgent.match(/Chrome\/([\d.]+)/);
+        if (match) browserVersion = match[1];
+    } else if (userAgent.indexOf('Firefox') !== -1) {
+        browserName = 'Firefox';
+        const match = userAgent.match(/Firefox\/([\d.]+)/);
+        if (match) browserVersion = match[1];
+    } else if (userAgent.indexOf('Safari') !== -1 && userAgent.indexOf('Chrome') === -1) {
+        browserName = 'Safari';
+        const match = userAgent.match(/Version\/([\d.]+)/);
+        if (match) browserVersion = match[1];
+    } else if (userAgent.indexOf('Edg') !== -1) {
+        browserName = 'Edge';
+        const match = userAgent.match(/Edg\/([\d.]+)/);
+        if (match) browserVersion = match[1];
+    }
+    
+    let ip = 'غير متاح';
+    try {
+        const res = await fetch('https://api.ipify.org?format=json');
+        const data = await res.json();
+        ip = data.ip;
+    } catch(e) { console.warn('Could not fetch IP'); }
+    
+    return {
+        userAgent, platform, language, screenWidth, screenHeight, timezone, online,
+        hardwareConcurrency, deviceMemory, deviceModel, osName, osVersion, browserName, browserVersion, ip,
+        timestamp: getLocalDateTimeString()
+    };
+}
+async function saveDeviceSession(sessionToken) {
+    const deviceInfo = await getDetailedDeviceInfo();
+    const ip = deviceInfo.ip;
+    delete deviceInfo.ip;
+    const { error } = await mySupabase.from('user_sessions').insert({
+        user_id: currentUser.id,
+        session_token: sessionToken,
+        device_info: deviceInfo,
+        ip_address: ip,
+        login_time: getLocalDateTimeString()
+    });
+    if (error) console.error('Error saving session:', error);
+}
+
+// ==================== المصادقة وإدارة الجلسات ====================
+async function login(username, password) {
+    try {
+        const { data, error } = await mySupabase.from('users').select('id, username, name, role, is_active').eq('username', username).eq('password', password);
+        if (error) throw new Error('خطأ في قاعدة البيانات');
+        if (!data || data.length === 0) throw new Error('اسم المستخدم أو كلمة المرور غير صحيحة');
+        const user = data[0];
+        if (!user.is_active) throw new Error('الحساب معطل');
+        currentUser = user;
+        const sessionToken = crypto.randomUUID();
+        localStorage.setItem('currentUser', JSON.stringify({ id: user.id, name: user.name, role: user.role, timestamp: Date.now(), sessionToken }));
+        await saveDeviceSession(sessionToken);
+        startUserStatusPolling();
+        return true;
+    } catch(err) { showErrorModal(err.message); return false; }
+}
+function restoreSession() {
+    const stored = localStorage.getItem('currentUser');
+    if (stored) {
+        try {
+            const session = JSON.parse(stored);
+            if (Date.now() - session.timestamp < 7 * 24 * 60 * 60 * 1000) {
+                currentUser = session;
+                startUserStatusPolling();
+                return true;
+            } else localStorage.removeItem('currentUser');
+        } catch(e) { localStorage.removeItem('currentUser'); }
+    }
+    return false;
+}
+function logout() {
+    if (userStatusPollInterval) clearInterval(userStatusPollInterval);
+    currentUser = null;
+    localStorage.removeItem('currentUser');
+    document.getElementById('loginPage').classList.remove('hidden');
+    document.getElementById('mainMenu').classList.add('hidden');
+    document.getElementById('searchPage').classList.add('hidden');
+    document.getElementById('meterPage').classList.add('hidden');
+    document.getElementById('adminPage').classList.add('hidden');
+    showAutoModal('تم تسجيل الخروج');
+}
+function startUserStatusPolling() {
+    if (userStatusPollInterval) clearInterval(userStatusPollInterval);
+    userStatusPollInterval = setInterval(async () => {
+        if (!currentUser) return;
+        try {
+            const { data: userData, error: userError } = await mySupabase.from('users').select('is_active').eq('id', currentUser.id).single();
+            if (userError) { console.warn('Error fetching user status:', userError); return; }
+            if (!userData || userData.is_active === false) { logout(); showErrorModal('تم تعطيل حسابك بواسطة المدير، سيتم تسجيل الخروج'); return; }
+        } catch(e) { console.warn(e); return; }
+        const stored = localStorage.getItem('currentUser');
+        if (!stored) return;
+        let session;
+        try { session = JSON.parse(stored); } catch(e) { return; }
+        if (!session.sessionToken) return;
+        try {
+            const { data: sessionData, error: sessionError } = await mySupabase.from('user_sessions')
+                .select('session_token')
+                .eq('user_id', currentUser.id)
+                .eq('session_token', session.sessionToken)
+                .maybeSingle();
+            if (sessionError) { console.warn('Error fetching session:', sessionError); return; }
+            if (!sessionData) { logout(); showErrorModal('تم إنهاء جلستك من قبل المدير، يرجى تسجيل الدخول مجدداً'); }
+        } catch(e) { console.warn(e); }
+    }, 30000);
+}
+async function logoutUser(userId) {
+    if (userId === currentUser.id) { showErrorModal("لا يمكنك تسجيل خروج نفسك"); return; }
+    await mySupabase.from('user_sessions').delete().eq('user_id', userId);
+    showToast(`تم تسجيل خروج المستخدم بنجاح`);
+    if (document.getElementById('adminPage').style.display !== 'none') loadUsersForAdmin();
+}
+
+// ==================== البحث ====================
+function getFilteredData() {
+    const village = document.getElementById('villageFilter')?.value || '';
+    const meterType = document.getElementById('meterTypeFilter')?.value || '';
+    const tariff = document.getElementById('tariffFilter')?.value || '';
+    return excelData.filter(row => {
+        if (village && row['القرية'] !== village) return false;
+        if (meterType && row['نوع العداد'] !== meterType) return false;
+        if (tariff && row['نوع التعرفة'] !== tariff) return false;
+        return true;
+    });
+}
+async function performSearch(type, query) {
+    if (!excelData.length) { showErrorModal('البيانات لم تُحمّل بعد، يرجى المحاولة لاحقاً'); await loadDataFromDB(); if (!excelData.length) return []; }
+    let filtered = getFilteredData();
+    let results = [];
+    if (type === 'رقم المشترك') {
+        const numericQuery = extractNumeric(query);
+        const rec = filtered.find(r => {
+            const original = r['رقم المشترك'] || '';
+            const numericOriginal = extractNumeric(original);
+            return original === query || numericOriginal === numericQuery;
+        });
+        if (rec) results = [rec];
+    } else {
+        results = filtered.filter(r => (r['اسم المشترك'] || '').includes(query));
+    }
+    if (currentUser) {
+        try {
+            await mySupabase.from('search_logs').insert({
+                user_id: currentUser.id,
+                type: type,
+                query: query,
+                result_count: results.length,
+                subscriber_name: results[0]?.['اسم المشترك'] || '',
+                subscriber_number: results[0]?.['رقم المشترك'] || '',
+                created_at: getLocalDateTimeString()
+            });
+        } catch(e) { console.warn(e); }
+    }
+    return results;
+}
+function showResultsInModal(results, role) {
+    if (!results.length) { showErrorModal('لا توجد نتائج مطابقة للبحث'); return; }
+    currentSearchResults = results;
+    currentSearchResultIndex = 0;
+    renderSingleResult();
+    document.getElementById('resultModal').style.display = 'flex';
+}
+function renderSingleResult() {
+    const record = currentSearchResults[currentSearchResultIndex];
+    const role = currentUser.role;
+    let fields = (role === 'admin' || role === 'expert') 
+        ? ['رقم المشترك','اسم المشترك','نوع التعرفة','تاريخ الاشتراك','القرية','العنوان','رمز القطاع','رقم القطاع','رقم البناء','نوع العقار','نوع العداد','آخر عملية شحن']
+        : ['رقم المشترك','اسم المشترك','القرية','العنوان','رمز القطاع','رقم القطاع','رقم البناء','آخر عملية شحن'];
+    let body = `<div class="modal-header" style="border-bottom: none; font-size: 1.2rem;">نتيجة البحث ${currentSearchResultIndex+1} من ${currentSearchResults.length}</div>`;
+    for (const f of fields) {
+        let val = record[f];
+        let display = (f === 'تاريخ الاشتراك' || f === 'آخر عملية شحن') ? (typeof val === 'object' ? `${val.date} ${val.time||''}` : (val||'-')) : (val||'-');
+        body += `<div class="modal-row"><span class="modal-label">${f}:</span><span class="modal-value">${display}</span></div>`;
+    }
+    let navButtons = '';
+    if (currentSearchResults.length > 1) {
+        navButtons = `<div class="flex" style="justify-content: center; margin-top: 10px; gap: 15px;">
+            <button class="btn btn-small btn-secondary" id="prevResultBtn" ${currentSearchResultIndex===0?'disabled':''}>السابق</button>
+            <span>${currentSearchResultIndex+1} / ${currentSearchResults.length}</span>
+            <button class="btn btn-small btn-secondary" id="nextResultBtn" ${currentSearchResultIndex===currentSearchResults.length-1?'disabled':''}>التالي</button>
+        </div>`;
+    }
+    document.getElementById('resultModalBody').innerHTML = body + navButtons;
+    const prevBtn = document.getElementById('prevResultBtn');
+    const nextBtn = document.getElementById('nextResultBtn');
+    if (prevBtn) prevBtn.onclick = () => { if (currentSearchResultIndex > 0) { currentSearchResultIndex--; renderSingleResult(); } };
+    if (nextBtn) nextBtn.onclick = () => { if (currentSearchResultIndex < currentSearchResults.length-1) { currentSearchResultIndex++; renderSingleResult(); } };
+}
+async function shareCurrentResult() {
+    if (!currentSearchResults.length) return;
+    const record = currentSearchResults[currentSearchResultIndex];
+    const role = currentUser.role;
+    let fields = (role === 'admin' || role === 'expert') 
+        ? ['رقم المشترك','اسم المشترك','نوع التعرفة','تاريخ الاشتراك','القرية','العنوان','رمز القطاع','رقم القطاع','رقم البناء','نوع العقار','نوع العداد','آخر عملية شحن']
+        : ['رقم المشترك','اسم المشترك','القرية','العنوان','رمز القطاع','رقم القطاع','رقم البناء','آخر عملية شحن'];
+    let text = `📋 نتيجة البحث (${currentSearchResultIndex+1} من ${currentSearchResults.length})\n`;
+    for (const f of fields) {
+        let val = record[f];
+        let display = (f === 'تاريخ الاشتراك' || f === 'آخر عملية شحن') ? (typeof val === 'object' ? `${val.date} ${val.time||''}` : (val||'-')) : (val||'-');
+        text += `${f}: ${display}\n`;
+    }
+    text += `\nتمت المشاركة بواسطة ${currentUser.name}`;
+    if (navigator.share) await navigator.share({ title: 'نتيجة البحث', text }); else await navigator.clipboard.writeText(text);
+    showToast('تمت المشاركة');
+}
+
+// ==================== الفلاتر ====================
+function updateFilterOptions() {
+    if (currentUser.role !== 'admin') return;
+    const villageMap = new Map();
+    const meterTypeMap = new Map();
+    const tariffMap = new Map();
+    for (const row of excelData) {
+        const village = row['القرية'];
+        const meter = row['نوع العداد'];
+        const tariff = row['نوع التعرفة'];
+        if (village) villageMap.set(village, (villageMap.get(village)||0)+1);
+        if (meter) meterTypeMap.set(meter, (meterTypeMap.get(meter)||0)+1);
+        if (tariff) tariffMap.set(tariff, (tariffMap.get(tariff)||0)+1);
+    }
+    const vs = document.getElementById('villageFilter');
+    const ms = document.getElementById('meterTypeFilter');
+    const ts = document.getElementById('tariffFilter');
+    if (vs) {
+        let html = '<option value="">جميع القرى</option>';
+        Array.from(villageMap.entries()).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([val, cnt]) => { html += `<option value="${val}">${val} <span class="filter-option-count">(${cnt})</span></option>`; });
+        vs.innerHTML = html;
+    }
+    if (ms) {
+        let html = '<option value="">جميع أنواع العدادات</option>';
+        Array.from(meterTypeMap.entries()).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([val, cnt]) => { html += `<option value="${val}">${val} <span class="filter-option-count">(${cnt})</span></option>`; });
+        ms.innerHTML = html;
+    }
+    if (ts) {
+        let html = '<option value="">جميع أنواع التعرفة</option>';
+        Array.from(tariffMap.entries()).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([val, cnt]) => { html += `<option value="${val}">${val} <span class="filter-option-count">(${cnt})</span></option>`; });
+        ts.innerHTML = html;
+    }
+}
+
+// ==================== السجلات ====================
+async function fetchSearchLogs() {
+    let query = mySupabase.from('search_logs').select('*').order('created_at', { ascending: false });
+    if (currentUser.role !== 'admin') query = query.eq('user_id', currentUser.id);
+    const { data, error } = await query;
+    if (error) return [];
+    const userIds = [...new Set(data.map(l => l.user_id))];
+    const { data: users } = await mySupabase.from('users').select('id, name').in('id', userIds);
+    const userMap = new Map(users?.map(u => [u.id, u.name]) || []);
+    return data.map(log => ({ ...log, user_name: userMap.get(log.user_id) || 'مستخدم' }));
+}
+async function fetchMeterLogs() {
+    let query = mySupabase.from('meter_logs').select('*').order('created_at', { ascending: false });
+    if (currentUser.role !== 'admin') query = query.eq('user_id', currentUser.id);
+    const { data, error } = await query;
+    if (error) return [];
+    const userIds = [...new Set(data.map(l => l.user_id))];
+    const { data: users } = await mySupabase.from('users').select('id, name').in('id', userIds);
+    const userMap = new Map(users?.map(u => [u.id, u.name]) || []);
+    return data.map(log => ({ ...log, user_name: userMap.get(log.user_id) || 'مستخدم' }));
+}
+function formatSearchLogDetail(log, index) {
+    const dtStr = log.created_at || 'غير معروف';
+    return `<div class="log-detail-row"><span class="log-detail-label">#</span><span class="log-detail-value">${index}</span></div>
+            <div class="log-detail-row"><span class="log-detail-label">المستخدم:</span><span class="log-detail-value">${log.user_name}</span></div>
+            <div class="log-detail-row"><span class="log-detail-label">التاريخ والوقت:</span><span class="log-detail-value">${dtStr}</span></div>
+            <div class="log-detail-row"><span class="log-detail-label">اسم المشترك:</span><span class="log-detail-value">${log.subscriber_name || '-'}</span></div>
+            <div class="log-detail-row"><span class="log-detail-label">رقم المشترك:</span><span class="log-detail-value">${log.subscriber_number || '-'}</span></div>
+            <div class="log-detail-row"><span class="log-detail-label">نوع البحث:</span><span class="log-detail-value">${log.type}</span></div>
+            <div class="log-detail-row"><span class="log-detail-label">كلمة البحث:</span><span class="log-detail-value">${log.query}</span></div>
+            <div class="log-detail-row"><span class="log-detail-label">عدد النتائج:</span><span class="log-detail-value">${log.result_count}</span></div>`;
+}
+function formatMeterLogDetail(log, index) {
+    const dtStr = log.created_at || 'غير معروف';
+    let detailsHtml = '';
+    if (log.phase === 'أحادي الطور') {
+        detailsHtml = `<div class="log-detail-row"><span class="log-detail-label">الفولت:</span><span class="log-detail-value">${log.details?.voltage || '-'}</span></div>
+                       <div class="log-detail-row"><span class="log-detail-label">التيار المدخل:</span><span class="log-detail-value">${log.details?.current || '-'}</span></div>
+                       <div class="log-detail-row"><span class="log-detail-label">القدرة المحملة:</span><span class="log-detail-value">${log.details?.power || '-'}</span></div>
+                       <div class="log-detail-row"><span class="log-detail-label">معامل القدرة:</span><span class="log-detail-value">${log.details?.pf || '-'}</span></div>`;
+    } else {
+        detailsHtml = `<div class="log-detail-row"><span class="log-detail-label">الفولتات (L1/L2/L3):</span><span class="log-detail-value">${log.details?.v1 || '-'} / ${log.details?.v2 || '-'} / ${log.details?.v3 || '-'}</span></div>
+                       <div class="log-detail-row"><span class="log-detail-label">الأمبيرات (L1/L2/L3):</span><span class="log-detail-value">${log.details?.i1 || '-'} / ${log.details?.i2 || '-'} / ${log.details?.i3 || '-'}</span></div>
+                       <div class="log-detail-row"><span class="log-detail-label">القدرة الكلية:</span><span class="log-detail-value">${log.details?.totalPower || '-'}</span></div>
+                       <div class="log-detail-row"><span class="log-detail-label">معامل القدرة:</span><span class="log-detail-value">${log.details?.pf || '-'}</span></div>`;
+    }
+    return `<div class="log-detail-row"><span class="log-detail-label">#</span><span class="log-detail-value">${index}</span></div>
+            <div class="log-detail-row"><span class="log-detail-label">المستخدم:</span><span class="log-detail-value">${log.user_name}</span></div>
+            <div class="log-detail-row"><span class="log-detail-label">التاريخ والوقت:</span><span class="log-detail-value">${dtStr}</span></div>
+            <div class="log-detail-row"><span class="log-detail-label">رقم العداد:</span><span class="log-detail-value">${log.meter_number}</span></div>
+            <div class="log-detail-row"><span class="log-detail-label">اسم المشترك:</span><span class="log-detail-value">${log.subscriber_name || '-'}</span></div>
+            ${detailsHtml}
+            <div class="log-detail-row"><span class="log-detail-label">الوقت (دقائق):</span><span class="log-detail-value">${log.time_minutes || '-'}</span></div>
+            <div class="log-detail-row"><span class="log-detail-label">الرصيد الموجود:</span><span class="log-detail-value">${log.balance || '-'} kW</span></div>
+            <div class="log-detail-row"><span class="log-detail-label">الرصيد المتبقي:</span><span class="log-detail-value">${log.remaining || '-'} kW</span></div>`;
+}
+function renderSearchLogsPage() {
+    const itemsPerPage = 3, totalPages = Math.ceil(globalSearchLogs.length / itemsPerPage);
+    const start = (currentSearchLogsPage-1)*itemsPerPage;
+    const pageLogs = globalSearchLogs.slice(start, start+itemsPerPage);
+    let html = '';
+    for (let i=0; i<pageLogs.length; i++) {
+        html += `<div class="log-entry">${formatSearchLogDetail(pageLogs[i], start+i+1)}<div class="log-actions"><button class="btn btn-small share-btn" onclick="shareSearchLogById(${pageLogs[i].id})">📤 مشاركة</button><button class="btn btn-small btn-danger" onclick="deleteSearchLogById(${pageLogs[i].id})">🗑️ حذف</button></div></div>`;
+    }
+    document.getElementById('searchLogsModalBody').innerHTML = html;
+    document.getElementById('searchLogsPagination').innerHTML = `<button class="btn btn-secondary btn-small" onclick="changeSearchLogsPage(-1)" ${currentSearchLogsPage===1?'disabled':''}>السابق</button><span>صفحة ${currentSearchLogsPage} من ${totalPages}</span><button class="btn btn-secondary btn-small" onclick="changeSearchLogsPage(1)" ${currentSearchLogsPage===totalPages?'disabled':''}>التالي</button>`;
+}
+window.changeSearchLogsPage = (delta) => {
+    const itemsPerPage = 3, totalPages = Math.ceil(globalSearchLogs.length / itemsPerPage);
+    let np = currentSearchLogsPage + delta; if (np<1) np=1; if (np>totalPages) np=totalPages;
+    currentSearchLogsPage = np; renderSearchLogsPage();
+};
+window.shareSearchLogById = async (id) => {
+    const { data, error } = await mySupabase.from('search_logs').select('*').eq('id', id).single();
+    if (error) { showErrorModal('خطأ في جلب السجل'); return; }
+    const { data: userData } = await mySupabase.from('users').select('name').eq('id', data.user_id).single();
+    const userName = userData?.name || 'مستخدم';
+    const dtStr = data.created_at || 'غير معروف';
+    const text = `🔍 سجل بحث\nالمستخدم او الموظف: ${userName}\nالتاريخ والوقت: ${dtStr}\nاسم المشترك: ${data.subscriber_name || '-'}\nرقم المشترك: ${data.subscriber_number || '-'}\nنوع البحث: ${data.type}\nكلمة البحث: ${data.query}\nعدد النتائج: ${data.result_count}\n\nتمت المشاركة بواسطة ${currentUser.name}`;
+    if (navigator.share) await navigator.share({ title: 'سجل بحث', text }); else await navigator.clipboard.writeText(text);
+    showToast('تمت المشاركة');
+};
+window.deleteSearchLogById = async (id) => {
+    if (!confirm('هل تريد حذف هذا السجل نهائياً؟')) return;
+    await mySupabase.from('search_logs').delete().eq('id', id);
+    showToast('تم الحذف'); globalSearchLogs = await fetchSearchLogs(); renderSearchLogsPage();
+};
+async function showSearchLogsModal() {
+    globalSearchLogs = await fetchSearchLogs();
+    if (!globalSearchLogs.length) { showErrorModal('لا توجد سجلات بحث لعرضها'); return; }
+    currentSearchLogsPage = 1; renderSearchLogsPage();
+    document.getElementById('searchLogsModal').style.display = 'flex';
+}
+async function showMeterLogsModal() {
+    globalMeterLogs = await fetchMeterLogs();
+    if (!globalMeterLogs.length) { showErrorModal('لا توجد سجلات فحص عداد لعرضها'); return; }
+    currentMeterLogsPage = 1; renderMeterLogsPage();
+    document.getElementById('meterLogsModal').style.display = 'flex';
+}
+function renderMeterLogsPage() {
+    const itemsPerPage = 3, totalPages = Math.ceil(globalMeterLogs.length / itemsPerPage);
+    const start = (currentMeterLogsPage-1)*itemsPerPage;
+    const pageLogs = globalMeterLogs.slice(start, start+itemsPerPage);
+    let html = '';
+    for (let i=0; i<pageLogs.length; i++) {
+        html += `<div class="log-entry">${formatMeterLogDetail(pageLogs[i], start+i+1)}<div class="log-actions"><button class="btn btn-small share-btn" onclick="shareMeterLogById(${pageLogs[i].id})">📤 مشاركة</button><button class="btn btn-small btn-danger" onclick="deleteMeterLogById(${pageLogs[i].id})">🗑️ حذف</button></div></div>`;
+    }
+    document.getElementById('meterLogsModalBody').innerHTML = html;
+    document.getElementById('meterLogsPagination').innerHTML = `<button class="btn btn-secondary btn-small" onclick="changeMeterLogsPage(-1)" ${currentMeterLogsPage===1?'disabled':''}>السابق</button><span>صفحة ${currentMeterLogsPage} من ${totalPages}</span><button class="btn btn-secondary btn-small" onclick="changeMeterLogsPage(1)" ${currentMeterLogsPage===totalPages?'disabled':''}>التالي</button>`;
+}
+window.changeMeterLogsPage = (delta) => {
+    const itemsPerPage = 3, totalPages = Math.ceil(globalMeterLogs.length / itemsPerPage);
+    let np = currentMeterLogsPage + delta; if (np<1) np=1; if (np>totalPages) np=totalPages;
+    currentMeterLogsPage = np; renderMeterLogsPage();
+};
+window.shareMeterLogById = async (id) => {
+    const { data, error } = await mySupabase.from('meter_logs').select('*').eq('id', id).single();
+    if (error) { showErrorModal('خطأ في جلب السجل'); return; }
+    const { data: userData } = await mySupabase.from('users').select('name').eq('id', data.user_id).single();
+    const userName = userData?.name || 'مستخدم';
+    const dtStr = data.created_at || 'غير معروف';
+    let base = `⚡ سجل فحص عداد (${data.phase})\nالمستخدم أو الموظف: ${userName}\nالتاريخ والوقت: ${dtStr}\nرقم العداد: ${data.meter_number}\nاسم المشترك: ${data.subscriber_name || '-'}`;
+    if (data.phase === 'أحادي الطور') base += `\nالفولت: ${data.details?.voltage || '-'}\nالتيار المدخل: ${data.details?.current || '-'}\nالقدرة المحملة: ${data.details?.power || '-'}\nمعامل القدرة: ${data.details?.pf || '-'}`;
+    else base += `\nالفولتات (L1/L2/L3): ${data.details?.v1 || '-'} / ${data.details?.v2 || '-'} / ${data.details?.v3 || '-'}\nالأمبيرات (L1/L2/L3): ${data.details?.i1 || '-'} / ${data.details?.i2 || '-'} / ${data.details?.i3 || '-'}\nالقدرة الكلية: ${data.details?.totalPower || '-'}\nمعامل القدرة: ${data.details?.pf || '-'}`;
+    base += `\nالوقت: ${data.time_minutes || '-'} دقيقة\nالرصيد الموجود: ${data.balance || '-'} kW\nالرصيد المتبقي: ${data.remaining || '-'} kW\n\nتمت المشاركة بواسطة ${currentUser.name}`;
+    if (navigator.share) await navigator.share({ title: 'سجل فحص عداد', text: base }); else await navigator.clipboard.writeText(base);
+    showToast('تمت المشاركة');
+};
+window.deleteMeterLogById = async (id) => {
+    if (!confirm('هل تريد حذف هذا السجل نهائياً؟')) return;
+    await mySupabase.from('meter_logs').delete().eq('id', id);
+    showToast('تم الحذف'); globalMeterLogs = await fetchMeterLogs(); renderMeterLogsPage();
+};
+
+// ==================== جلسات المستخدم ====================
+async function fetchUserSessions(userId) {
+    const { data, error } = await mySupabase.from('user_sessions').select('*').eq('user_id', userId).order('login_time', { ascending: false });
+    if (error) return [];
+    return data;
+}
+function formatDeviceInfo(device) {
+    if (!device) return '';
+    return `<div class="log-detail-row"><span class="log-detail-label">موديل الجهاز (رقم الطراز):</span><span class="log-detail-value">${device.deviceModel || 'غير معروف'}</span></div>
+            <div class="log-detail-row"><span class="log-detail-label">نظام التشغيل:</span><span class="log-detail-value">${device.osName || 'غير معروف'} ${device.osVersion || ''}</span></div>
+            <div class="log-detail-row"><span class="log-detail-label">المتصفح:</span><span class="log-detail-value">${device.browserName || 'غير معروف'} ${device.browserVersion || ''}</span></div>
+            <div class="log-detail-row"><span class="log-detail-label">دقة الشاشة:</span><span class="log-detail-value">${device.screenWidth || '?'} x ${device.screenHeight || '?'}</span></div>
+            <div class="log-detail-row"><span class="log-detail-label">اللغة:</span><span class="log-detail-value">${device.language || 'غير معروف'}</span></div>
+            <div class="log-detail-row"><span class="log-detail-label">المنطقة الزمنية:</span><span class="log-detail-value">${device.timezone || 'غير معروف'}</span></div>
+            <div class="log-detail-row"><span class="log-detail-label">عدد الأنوية:</span><span class="log-detail-value">${device.hardwareConcurrency || 'غير معروف'}</span></div>
+            <div class="log-detail-row"><span class="log-detail-label">الذاكرة المتاحة (تقريبي):</span><span class="log-detail-value">${device.deviceMemory ? device.deviceMemory + ' GB' : 'غير معروف'}</span></div>
+            <div class="log-detail-row"><span class="log-detail-label">User Agent:</span><span class="log-detail-value">${device.userAgent || 'غير معروف'}</span></div>`;
+}
+function renderSessionsPage() {
+    const itemsPerPage = 3, totalPages = Math.ceil(currentSessionsData.length / itemsPerPage);
+    const start = (currentSessionsPage-1)*itemsPerPage, pageSessions = currentSessionsData.slice(start, start+itemsPerPage);
+    let html = '';
+    for (let i=0; i<pageSessions.length; i++) {
+        const sess = pageSessions[i];
+        const dtStr = sess.login_time || 'غير معروف';
+        const device = sess.device_info || {};
+        html += `<div class="log-entry">
+                    <div class="log-detail-row"><span class="log-detail-label">#</span><span class="log-detail-value">${start+i+1}</span></div>
+                    <div class="log-detail-row"><span class="log-detail-label">وقت تسجيل الدخول:</span><span class="log-detail-value">${dtStr}</span></div>
+                    <div class="log-detail-row"><span class="log-detail-label">عنوان IP:</span><span class="log-detail-value">${sess.ip_address || '-'}</span></div>
+                    ${formatDeviceInfo(device)}
+                 </div>`;
+    }
+    document.getElementById('userSessionsModalBody').innerHTML = html;
+    document.getElementById('userSessionsPagination').innerHTML = `<button class="btn btn-secondary btn-small" onclick="changeSessionsPage(-1)" ${currentSessionsPage===1?'disabled':''}>السابق</button><span>صفحة ${currentSessionsPage} من ${totalPages}</span><button class="btn btn-secondary btn-small" onclick="changeSessionsPage(1)" ${currentSessionsPage===totalPages?'disabled':''}>التالي</button>`;
+}
+window.changeSessionsPage = (delta) => {
+    const itemsPerPage = 3, totalPages = Math.ceil(currentSessionsData.length / itemsPerPage);
+    let np = currentSessionsPage + delta; if (np<1) np=1; if (np>totalPages) np=totalPages;
+    currentSessionsPage = np; renderSessionsPage();
+};
+window.showUserSessions = async (userId) => {
+    currentSessionsData = await fetchUserSessions(userId);
+    if (!currentSessionsData.length) { showErrorModal('لا توجد جلسات مسجلة لهذا المستخدم'); return; }
+    currentSessionsPage = 1;
+    renderSessionsPage();
+    document.getElementById('userSessionsModal').style.display = 'flex';
+};
+
+// ==================== إدارة المستخدمين للمدير ====================
+async function loadUsersForAdmin() {
+    if (currentUser.role !== 'admin') return;
+    const { data, error } = await mySupabase.from('users').select('id, username, name, role, is_active');
+    if (error) return;
+    let html = '<h4>المستخدمون (اضغط على اسم المستخدم لإدارته)</h4>';
+    for (const u of data) {
+        const statusText = u.is_active ? '🟢 نشط' : '🔴 موقوف';
+        html += `<div class="user-list-item card" onclick="showUserManageModal(${u.id}, '${u.name}', '${u.username}', '${u.role}', ${u.is_active})">
+                    <div><strong>${u.name}</strong> (${u.username}) - ${statusText}</div>
+                </div>`;
+    }
+    document.getElementById('usersList').innerHTML = html;
+}
+window.showUserManageModal = (userId, name, username, role, isActive) => {
+    let html = `
+        <div class="modal-row"><span class="modal-label">الاسم:</span><span class="modal-value">${name}</span></div>
+        <div class="modal-row"><span class="modal-label">اسم المستخدم:</span><span class="modal-value">${username}</span></div>
+        <div class="modal-row"><span class="modal-label">الحالة:</span><span class="modal-value">${isActive ? 'نشط' : 'موقوف'}</span></div>
+        <div class="flex-buttons" style="margin-top:15px;">
+            <button class="btn btn-small" onclick="changeUserRole(${userId})">تغيير الدور</button>
+            <button class="btn btn-small" onclick="changeUserPassword(${userId})">تغيير كلمة المرور</button>
+            <button class="btn btn-small btn-danger" onclick="toggleUserActive(${userId}, ${!isActive})">${isActive ? 'تعطيل الحساب' : 'تفعيل الحساب'}</button>
+            <button class="btn btn-small btn-danger" onclick="deleteUserAccount(${userId})">حذف الحساب</button>
+            <button class="btn btn-small btn-danger" onclick="logoutUser(${userId})">تسجيل خروج المستخدم</button>
+            <button class="btn btn-small btn-success" onclick="startChatWithUser(${userId}, '${name}')">📩 مراسلة</button>
+        </div>
+        <hr>
+        <div class="flex-buttons" style="margin: 10px 0;">
+            <button class="btn btn-small btn-secondary" onclick="showUserSpecificLogs(${userId}, 'search')">📋 سجل البحث</button>
+            <button class="btn btn-small btn-secondary" onclick="showUserSpecificLogs(${userId}, 'meter')">📋 سجل فحص العداد</button>
+            <button class="btn btn-small btn-success" onclick="showUserSessions(${userId})">📱 معلومات الأجهزة والجلسات</button>
+        </div>
+    `;
+    document.getElementById('userManageModalBody').innerHTML = html;
+    document.getElementById('userManageModal').style.display = 'flex';
+};
+window.startChatWithUser = async (userId, userName) => {
+    closeModal('userManageModal');
+    if (!currentUser || currentUser.role !== 'admin') {
+        showErrorModal('غير مسموح بهذه العملية إلا للأدمن');
+        return;
+    }
+    const convId = await getOrCreateConversationForUser(userId);
+    await openAdminConversationDetail(convId);
+};
+window.changeUserRole = async (userId) => {
+    const newRole = prompt('أدخل الدور الجديد (admin / expert / viewer):');
+    if (!newRole || !['admin','expert','viewer'].includes(newRole)) { showErrorModal('دور غير صالح'); return; }
+    await mySupabase.from('users').update({ role: newRole }).eq('id', userId);
+    showToast('تم تحديث الدور'); closeModal('userManageModal'); loadUsersForAdmin();
+};
+window.changeUserPassword = async (userId) => {
+    const newPass = prompt('أدخل كلمة المرور الجديدة:');
+    if (!newPass) return;
+    await mySupabase.from('users').update({ password: newPass }).eq('id', userId);
+    showToast('تم تغيير كلمة المرور'); closeModal('userManageModal');
+};
+window.toggleUserActive = async (userId, newStatus) => {
+    await mySupabase.from('users').update({ is_active: newStatus }).eq('id', userId);
+    showToast(`تم ${newStatus ? 'تفعيل' : 'تعطيل'} الحساب`); closeModal('userManageModal'); loadUsersForAdmin();
+};
+window.deleteUserAccount = async (userId) => {
+    if (userId === currentUser.id) { showErrorModal('لا يمكن حذف حسابك الحالي'); return; }
+    if (!confirm('هل أنت متأكد من حذف هذا المستخدم؟')) return;
+    await mySupabase.from('users').delete().eq('id', userId);
+    showToast('تم حذف المستخدم'); closeModal('userManageModal'); loadUsersForAdmin();
+};
+window.showUserSpecificLogs = async (userId, type) => {
+    let data;
+    if (type === 'search') {
+        const { data: logs } = await mySupabase.from('search_logs').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+        data = logs || [];
+        const { data: userData } = await mySupabase.from('users').select('name').eq('id', userId).single();
+        const userName = userData?.name || 'مستخدم';
+        data = data.map(log => ({ ...log, user_name: userName }));
+        currentUserLogsType = 'search';
+        document.getElementById('userLogsModalTitle').innerText = 'سجل بحث المستخدم';
+    } else {
+        const { data: logs } = await mySupabase.from('meter_logs').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+        data = logs || [];
+        const { data: userData } = await mySupabase.from('users').select('name').eq('id', userId).single();
+        const userName = userData?.name || 'مستخدم';
+        data = data.map(log => ({ ...log, user_name: userName }));
+        currentUserLogsType = 'meter';
+        document.getElementById('userLogsModalTitle').innerText = 'سجل فحص عداد المستخدم';
+    }
+    if (!data.length) { showErrorModal('لا توجد سجلات لهذا المستخدم'); return; }
+    currentUserLogsData = data; currentUserLogsPage = 1;
+    renderUserLogsPage();
+    document.getElementById('userLogsModal').style.display = 'flex';
+};
+function renderUserLogsPage() {
+    const itemsPerPage = 3, totalPages = Math.ceil(currentUserLogsData.length / itemsPerPage);
+    const start = (currentUserLogsPage-1)*itemsPerPage;
+    const pageLogs = currentUserLogsData.slice(start, start+itemsPerPage);
+    let html = '';
+    for (let i=0; i<pageLogs.length; i++) {
+        if (currentUserLogsType === 'search') html += `<div class="log-entry">${formatSearchLogDetail(pageLogs[i], start+i+1)}<div class="log-actions"><button class="btn btn-small share-btn" onclick="shareSpecificLog('search', ${pageLogs[i].id})">📤 مشاركة</button><button class="btn btn-small btn-danger" onclick="deleteSpecificLog('search', ${pageLogs[i].id})">🗑️ حذف</button></div></div>`;
+        else html += `<div class="log-entry">${formatMeterLogDetail(pageLogs[i], start+i+1)}<div class="log-actions"><button class="btn btn-small share-btn" onclick="shareSpecificLog('meter', ${pageLogs[i].id})">📤 مشاركة</button><button class="btn btn-small btn-danger" onclick="deleteSpecificLog('meter', ${pageLogs[i].id})">🗑️ حذف</button></div></div>`;
+    }
+    document.getElementById('userLogsModalBody').innerHTML = html;
+    document.getElementById('userLogsPagination').innerHTML = `<button class="btn btn-secondary btn-small" onclick="changeUserLogsPage(-1)" ${currentUserLogsPage===1?'disabled':''}>السابق</button><span>صفحة ${currentUserLogsPage} من ${totalPages}</span><button class="btn btn-secondary btn-small" onclick="changeUserLogsPage(1)" ${currentUserLogsPage===totalPages?'disabled':''}>التالي</button>`;
+}
+window.changeUserLogsPage = (delta) => {
+    const itemsPerPage = 3, totalPages = Math.ceil(currentUserLogsData.length / itemsPerPage);
+    let np = currentUserLogsPage + delta; if (np<1) np=1; if (np>totalPages) np=totalPages;
+    currentUserLogsPage = np; renderUserLogsPage();
+};
+window.shareSpecificLog = async (type, id) => {
+    let log;
+    if (type === 'search') { const { data } = await mySupabase.from('search_logs').select('*').eq('id', id).single(); log = data; }
+    else { const { data } = await mySupabase.from('meter_logs').select('*').eq('id', id).single(); log = data; }
+    if (!log) return;
+    const { data: userData } = await mySupabase.from('users').select('name').eq('id', log.user_id).single();
+    const userName = userData?.name || 'مستخدم';
+    const dtStr = log.created_at || 'غير معروف';
+    if (type === 'search') {
+        const text = `🔍 سجل بحث\nالمستخدم او الموظف: ${userName}\nالتاريخ والوقت: ${dtStr}\nاسم المشترك: ${log.subscriber_name || '-'}\nرقم المشترك: ${log.subscriber_number || '-'}\nنوع البحث: ${log.type}\nكلمة البحث: ${log.query}\nعدد النتائج: ${log.result_count}\n\nتمت المشاركة بواسطة ${currentUser.name}`;
+        if (navigator.share) await navigator.share({ title: 'سجل بحث', text }); else await navigator.clipboard.writeText(text);
+    } else {
+        let base = `⚡ سجل فحص عداد (${log.phase})\nالمستخدم أو الموظف: ${userName}\nالتاريخ والوقت: ${dtStr}\nرقم العداد: ${log.meter_number}\nاسم المشترك: ${log.subscriber_name || '-'}`;
+        if (log.phase === 'أحادي الطور') base += `\nالفولت: ${log.details?.voltage || '-'}\nالتيار المدخل: ${log.details?.current || '-'}\nالقدرة المحملة: ${log.details?.power || '-'}\nمعامل القدرة: ${log.details?.pf || '-'}`;
+        else base += `\nالفولتات (L1/L2/L3): ${log.details?.v1 || '-'} / ${log.details?.v2 || '-'} / ${log.details?.v3 || '-'}\nالأمبيرات (L1/L2/L3): ${log.details?.i1 || '-'} / ${log.details?.i2 || '-'} / ${log.details?.i3 || '-'}\nالقدرة الكلية: ${log.details?.totalPower || '-'}\nمعامل القدرة: ${log.details?.pf || '-'}`;
+        base += `\nالوقت: ${log.time_minutes || '-'} دقيقة\nالرصيد الموجود: ${log.balance || '-'} kW\nالرصيد المتبقي: ${log.remaining || '-'} kW\n\nتمت المشاركة بواسطة ${currentUser.name}`;
+        if (navigator.share) await navigator.share({ title: 'سجل فحص عداد', text: base }); else await navigator.clipboard.writeText(base);
+    }
+    showToast('تمت المشاركة');
+};
+window.deleteSpecificLog = async (type, id) => {
+    if (!confirm('هل تريد حذف هذا السجل نهائياً؟')) return;
+    if (type === 'search') await mySupabase.from('search_logs').delete().eq('id', id);
+    else await mySupabase.from('meter_logs').delete().eq('id', id);
+    showToast('تم الحذف');
+    if (currentUserLogsType === type) {
+        const userId = currentUserLogsData[0]?.user_id;
+        if (userId) {
+            if (type === 'search') {
+                const { data: logs } = await mySupabase.from('search_logs').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+                const { data: userData } = await mySupabase.from('users').select('name').eq('id', userId).single();
+                const userName = userData?.name || 'مستخدم';
+                currentUserLogsData = (logs || []).map(log => ({ ...log, user_name: userName }));
+            } else {
+                const { data: logs } = await mySupabase.from('meter_logs').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+                const { data: userData } = await mySupabase.from('users').select('name').eq('id', userId).single();
+                const userName = userData?.name || 'مستخدم';
+                currentUserLogsData = (logs || []).map(log => ({ ...log, user_name: userName }));
+            }
+            renderUserLogsPage();
+        }
+    }
+};
+
+// ==================== فحص العداد ====================
+function updateMeterResults() {
+    const isSingle = document.querySelector('input[name="phase"]:checked').value === 'single';
+    let powerKW = 0;
+    if (isSingle) {
+        const V = parseFloat(document.getElementById('voltage').value) || 0;
+        const I = parseFloat(document.getElementById('current').value) || 0;
+        const PF = parseFloat(document.getElementById('pf').value) || 1;
+        powerKW = (V * I * PF) / 1000;
+        document.getElementById('meterResults').innerHTML = `<div class="meter-result-box">القدرة المحملة: ${powerKW.toFixed(3)} kW</div>`;
+    } else {
+        const v1 = parseFloat(document.getElementById('v1').value) || 0;
+        const v2 = parseFloat(document.getElementById('v2').value) || 0;
+        const v3 = parseFloat(document.getElementById('v3').value) || 0;
+        const i1 = parseFloat(document.getElementById('i1').value) || 0;
+        const i2 = parseFloat(document.getElementById('i2').value) || 0;
+        const i3 = parseFloat(document.getElementById('i3').value) || 0;
+        const PF = parseFloat(document.getElementById('pf3').value) || 1;
+        let total = (v1*i1 + v2*i2 + v3*i3) * PF / 1000;
+        powerKW = total;
+        document.getElementById('meterResults').innerHTML = `<div class="meter-result-box">القدرة الكلية: ${powerKW.toFixed(3)} kW</div>`;
+    }
+    return powerKW;
+}
+async function saveMeterCheck() {
+    const meterNum = document.getElementById('meterNumber').value.trim();
+    if (!meterNum) { showErrorModal('أدخل رقم العداد'); return false; }
+    const phase = document.querySelector('input[name="phase"]:checked').value === 'single' ? 'أحادي الطور' : 'ثلاثي الطور';
+    const time = parseFloat(document.getElementById('timeMin').value) || 0;
+    const balance = parseFloat(document.getElementById('balance').value) || 0;
+    const power = updateMeterResults();
+    const remaining = balance - (power * (time/60));
+    let details = {};
+    if (phase === 'أحادي الطور') {
+        details = { voltage: document.getElementById('voltage').value, current: document.getElementById('current').value, pf: document.getElementById('pf').value, power };
+    } else {
+        details = { v1: document.getElementById('v1').value, i1: document.getElementById('i1').value, v2: document.getElementById('v2').value, i2: document.getElementById('i2').value, v3: document.getElementById('v3').value, i3: document.getElementById('i3').value, pf: document.getElementById('pf3').value, totalPower: power };
+    }
+    const now = getLocalDateTimeString();
+    await mySupabase.from('meter_logs').insert({
+        user_id: currentUser.id,
+        phase,
+        meter_number: meterNum,
+        subscriber_name: metersMap.get(meterNum)?.['اسم المشترك'] || '',
+        details,
+        time_minutes: time,
+        balance,
+        remaining: remaining > 0 ? remaining : 0,
+        created_at: now
+    });
+    showToast('تم حفظ الفحص');
+    return true;
+}
+function startTimer() {
+    if (timerInterval) clearInterval(timerInterval);
+    const minutes = parseFloat(document.getElementById('timeMin').value) || 0;
+    timerSeconds = minutes * 60;
+    document.getElementById('timerDisplay').innerText = formatTime(timerSeconds);
+    timerInterval = setInterval(() => {
+        if (timerSeconds <= 0) { clearInterval(timerInterval); timerInterval = null; return; }
+        timerSeconds--;
+        document.getElementById('timerDisplay').innerText = formatTime(timerSeconds);
+    }, 1000);
+}
+function formatTime(sec) { let m = Math.floor(sec/60); let s = sec%60; return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`; }
+function stopTimer() { if (timerInterval) clearInterval(timerInterval); timerInterval = null; }
+function updateSubscriberInfo() {
+    const num = document.getElementById('meterNumber').value.trim();
+    const infoDiv = document.getElementById('subscriberInfo');
+    const warningDiv = document.getElementById('phaseMismatchWarning');
+    const selectedPhase = document.querySelector('input[name="phase"]:checked').value;
+    if (!num) {
+        infoDiv.classList.add('hidden');
+        warningDiv.classList.add('hidden');
+        enablePhaseFields(true);
+        return;
+    }
+    const rec = metersMap.get(num);
+    if (!rec) {
+        infoDiv.innerHTML = '<p style="color:red;">⚠️ رقم غير موجود في البيانات</p>';
+        infoDiv.classList.remove('hidden');
+        warningDiv.classList.add('hidden');
+        enablePhaseFields(true);
+        return;
+    }
+    const subscriberName = rec['اسم المشترك'] || 'غير معروف';
+    const meterType = rec['نوع العداد'] || '';
+    const tariffType = rec['نوع التعرفة'] || '';
+    let lastCharge = rec['آخر عملية شحن'] || 'غير معروف';
+    if (typeof lastCharge === 'object') lastCharge = `${lastCharge.date} ${lastCharge.time || ''}`;
+    infoDiv.innerHTML = `<p><strong>👤 ${subscriberName}</strong></p><p>🔌 نوع العداد: ${meterType}</p><p>💰 نوع التعرفة: ${tariffType}</p><p>📅 آخر شحن: ${lastCharge}</p>`;
+    infoDiv.classList.remove('hidden');
+    const isThreePhaseMeter = meterType.includes('ثلاثي') || meterType.includes('3');
+    const isSinglePhaseMeter = meterType.includes('أحادي') || meterType.includes('1');
+    let mismatch = false;
+    let warningMsg = '';
+    if (selectedPhase === 'single' && isThreePhaseMeter) { mismatch = true; warningMsg = `⚠️ هذا العداد ${meterType} وليس أحادي الطور!`; }
+    else if (selectedPhase === 'three' && isSinglePhaseMeter) { mismatch = true; warningMsg = `⚠️ هذا العداد ${meterType} وليس ثلاثي الطور!`; }
+    if (mismatch) { warningDiv.innerHTML = warningMsg; warningDiv.classList.remove('hidden'); enablePhaseFields(false); }
+    else { warningDiv.classList.add('hidden'); enablePhaseFields(true); }
+}
+function enablePhaseFields(enable) {
+    const isSingle = document.querySelector('input[name="phase"]:checked').value === 'single';
+    if (isSingle) {
+        document.getElementById('voltage').disabled = !enable;
+        document.getElementById('current').disabled = !enable;
+        document.getElementById('pf').disabled = !enable;
+    } else {
+        document.getElementById('v1').disabled = !enable;
+        document.getElementById('v2').disabled = !enable;
+        document.getElementById('v3').disabled = !enable;
+        document.getElementById('i1').disabled = !enable;
+        document.getElementById('i2').disabled = !enable;
+        document.getElementById('i3').disabled = !enable;
+        document.getElementById('pf3').disabled = !enable;
+    }
+    document.getElementById('timeMin').disabled = !enable;
+    document.getElementById('balance').disabled = !enable;
+    document.getElementById('saveMeterBtn').disabled = !enable;
+}
+function togglePhaseDiv() {
+    const isSingle = document.querySelector('input[name="phase"]:checked').value === 'single';
+    document.getElementById('singlePhaseDiv').classList.toggle('hidden', !isSingle);
+    document.getElementById('threePhaseDiv').classList.toggle('hidden', isSingle);
+    updateSubscriberInfo();
+    updateMeterResults();
+}
+function clearMeterFields() {
+    document.getElementById('meterNumber').value = '';
+    document.getElementById('voltage').value = '';
+    document.getElementById('current').value = '';
+    document.getElementById('pf').value = '1';
+    document.getElementById('v1').value = '';
+    document.getElementById('v2').value = '';
+    document.getElementById('v3').value = '';
+    document.getElementById('i1').value = '';
+    document.getElementById('i2').value = '';
+    document.getElementById('i3').value = '';
+    document.getElementById('pf3').value = '1';
+    document.getElementById('timeMin').value = '';
+    document.getElementById('balance').value = '';
+    document.getElementById('meterResults').innerHTML = '';
+    document.getElementById('timerDisplay').innerText = '00:00';
+    document.getElementById('subscriberInfo').classList.add('hidden');
+    document.getElementById('phaseMismatchWarning').classList.add('hidden');
+    stopTimer();
+    enablePhaseFields(true);
+}
+
+// ==================== رفع ملف Excel ====================
+async function uploadExcel(file) {
+    showLoading(true);
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            let json = XLSX.utils.sheet_to_json(sheet);
+            json = json.map(row => { const newRow = {}; for (const [key, val] of Object.entries(row)) { if (key.includes('تاريخ') || key.includes('شحن')) newRow[key] = processExcelValue(val); else newRow[key] = val; } return newRow; });
+            const compressed = pako.gzip(new TextEncoder().encode(JSON.stringify(json)));
+            const { data: meta } = await mySupabase.from('metadata').select('value').eq('key', 'version').single();
+            let newVersion = meta ? parseInt(meta.value)+1 : 1;
+            const fileName = `data_v${newVersion}.json.gz`;
+            await mySupabase.storage.from('monthly-data').upload(fileName, compressed, { contentType: 'application/gzip', upsert: true });
+            await mySupabase.from('metadata').upsert({ key: 'version', value: newVersion.toString() });
+            showToast('تم رفع الملف وتحديث الإصدار');
+            await downloadAndStoreData(newVersion);
+        } catch(err) { showErrorModal('فشل الرفع: ' + err.message); }
+        finally { showLoading(false); }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+// ==================== الدعم الفني (المحادثات) ====================
+async function getOrCreateConversationForUser(userId) {
+    const { data: existing, error } = await mySupabase.from('conversations').select('id').eq('user_id', userId).maybeSingle();
+    if (existing) return existing.id;
+    const { data: newConv, error: insertError } = await mySupabase.from('conversations').insert({
+        user_id: userId,
+        status: 'open',
+        created_at: getLocalDateTimeString(),
+        updated_at: getLocalDateTimeString()
+    }).select().single();
+    if (insertError) throw insertError;
+    return newConv.id;
+}
+async function loadMessages(conversationId, page = 1, limit = 20) {
+    const start = (page - 1) * limit;
+    const { data, error } = await mySupabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: true })
+        .range(start, start + limit - 1);
+    if (error) return [];
+    return data;
+}
+function renderChatMessage(msg, guestName = null, isAdminView = false) {
+    const isAdmin = msg.sender_type === 'admin';
+    const isCurrentUserAdmin = (currentUser && currentUser.role === 'admin');
+    const timeStr = formatMessageTime(msg.created_at);
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message-bubble ${isAdmin ? 'admin-bubble' : 'user-bubble'}`;
+    messageDiv.setAttribute('data-msg-id', msg.id);
+    let senderName = '';
+    if (isAdmin) {
+        senderName = 'الدعم';
+    } else {
+        if (msg.sender_type === 'user') {
+            senderName = guestName || (currentUser ? currentUser.name : 'مستخدم');
+        } else {
+            senderName = 'زائر';
+        }
+    }
+    let deleteButton = '';
+    if (isCurrentUserAdmin && !isAdminView) {
+        deleteButton = `<button class="delete-msg-btn" onclick="deleteMessageById('${msg.id}')" title="حذف الرسالة">🗑️</button>`;
+    } else if (isAdminView && isCurrentUserAdmin) {
+        deleteButton = `<button class="delete-msg-btn" onclick="deleteMessageById('${msg.id}')" title="حذف الرسالة">🗑️</button>`;
+    }
+    messageDiv.innerHTML = `
+        <div class="message-sender">${senderName}</div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="message-text" style="flex:1;">${escapeHtml(msg.message)}</div>
+            ${deleteButton}
+        </div>
+        <div class="message-time">${timeStr} ${!isAdmin ? `<span class="message-status">${msg.is_read ? '✓✓' : '✓'}</span>` : ''}</div>
+    `;
+    return messageDiv;
+}
+async function renderChatMessages(messages, guestName = null, append = false, isAdminView = false) {
+    const container = document.getElementById(isAdminView ? 'adminChatMessages' : 'chatMessages');
+    if (!container) return;
+    if (!append) container.innerHTML = '';
+    for (const msg of messages) {
+        const div = renderChatMessage(msg, guestName, isAdminView);
+        container.appendChild(div);
+    }
+    if (!append) container.scrollTop = container.scrollHeight;
+}
+window.deleteMessageById = async (msgId) => {
+    if (!currentUser || currentUser.role !== 'admin') {
+        showErrorModal('غير مسموح بالحذف إلا للأدمن');
+        return;
+    }
+    if (!confirm('هل تريد حذف هذه الرسالة نهائياً؟')) return;
+    const { error } = await mySupabase.from('messages').delete().eq('id', msgId);
+    if (error) {
+        showErrorModal('فشل حذف الرسالة');
+        return;
+    }
+    const msgElement = document.querySelector(`.message-bubble[data-msg-id="${msgId}"]`);
+    if (msgElement) msgElement.remove();
+    showToast('تم حذف الرسالة');
+};
+async function markMessagesAsRead(conversationId, userId) {
+    await mySupabase.from('messages')
+        .update({ is_read: true })
+        .eq('conversation_id', conversationId)
+        .neq('sender_type', 'user');
+}
+async function updateUserNotificationBadge() {
+    if (!currentUser) return;
+    try {
+        const convId = await getOrCreateConversationForUser(currentUser.id);
+        const { data: unreadMsgs, error } = await mySupabase.from('messages')
+            .select('id', { count: 'exact' })
+            .eq('conversation_id', convId)
+            .eq('is_read', false)
+            .neq('sender_type', 'user');
+        if (error) throw error;
+        const count = unreadMsgs?.length || 0;
+        const badge = document.querySelector('#openChatBtnMenu .badge');
+        if (badge) {
+            badge.style.display = count > 0 ? 'inline-block' : 'none';
+            if (count > 0) badge.innerText = count;
+        }
+    } catch(e) { console.warn(e); }
+}
+async function updateAdminNotification() {
+    if (!currentUser || currentUser.role !== 'admin') return;
+    try {
+        const { data: conversations, error } = await mySupabase.from('conversations').select('id, user_id, visitor_token, visitor_name').eq('status', 'open');
+        if (error) throw error;
+        let unreadConversations = [];
+        for (const conv of conversations) {
+            const { data: unreadMsgs, error: msgErr } = await mySupabase.from('messages')
+                .select('id, sender_type, sender_id')
+                .eq('conversation_id', conv.id)
+                .eq('is_read', false)
+                .neq('sender_type', 'admin')
+                .order('created_at', { ascending: false });
+            if (!msgErr && unreadMsgs && unreadMsgs.length > 0) {
+                let senderName = '';
+                if (unreadMsgs[0].sender_type === 'user') {
+                    const { data: user } = await mySupabase.from('users').select('name').eq('id', unreadMsgs[0].sender_id).single();
+                    senderName = user ? user.name : 'مستخدم';
+                } else {
+                    senderName = conv.visitor_name || 'زائر';
+                }
+                unreadConversations.push({ convId: conv.id, count: unreadMsgs.length, senderName });
+            }
+        }
+        const container = document.getElementById('adminNotificationContainer');
+        if (!container) return;
+        if (unreadConversations.length === 0) {
+            container.classList.add('hidden');
+            container.innerHTML = '';
+            return;
+        }
+        container.classList.remove('hidden');
+        let html = '';
+        for (const notif of unreadConversations) {
+            html += `<button class="admin-notification-btn" onclick="openConversationFromAdminNotification(${notif.convId})">
+                        💬 ${notif.senderName} (${notif.count} رسائل جديدة)
+                    </button>`;
+        }
+        container.innerHTML = html;
+    } catch(e) { console.warn(e); }
+}
+async function openConversationFromAdminNotification(convId) {
+    if (window.adminChannel) await mySupabase.removeChannel(window.adminChannel);
+    if (window.adminPollInterval) clearInterval(window.adminPollInterval);
+    window.adminCurrentConvId = convId;
+    currentConversationId = convId;
+    const messages = await loadMessages(convId, 1, 20);
+    const { data: conv } = await mySupabase.from('conversations').select('user_id, visitor_token, visitor_name').eq('id', convId).single();
+    let guestName = '';
+    if (conv.user_id) {
+        const { data: user } = await mySupabase.from('users').select('name').eq('id', conv.user_id).single();
+        guestName = user ? user.name : 'مستخدم';
+    } else {
+        guestName = conv.visitor_name || 'زائر';
+    }
+    const messagesHtml = `<div class="chat-container" id="adminChatMessages" style="max-height: 300px; overflow-y: auto; background: #efeae2;"></div>
+                          <div class="chat-input-wrapper" style="margin-top:10px;">
+                              <textarea id="adminChatReply" placeholder="اكتب ردك..." rows="1"></textarea>
+                              <button onclick="sendAdminReply()">إرسال</button>
+                          </div>`;
+    document.getElementById('adminChatDetail').innerHTML = `<h4>المحادثة مع: ${guestName}</h4>${messagesHtml}`;
+    await renderChatMessages(messages, guestName, false, true);
+    await markMessagesAsRead(convId, currentUser.id);
+    // إخفاء قائمة المحادثات وإظهار التفاصيل فقط
+    document.getElementById('adminChatList').style.display = 'none';
+    document.getElementById('adminChatDetail').style.display = 'block';
+    document.getElementById('adminChatModal').style.display = 'flex';
+    
+    if (window.adminChannel) await mySupabase.removeChannel(window.adminChannel);
+    window.adminChannel = mySupabase.channel(`admin-chat-${convId}`).on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${convId}`
+    }, async (payload) => {
+        if (payload.new.sender_type !== 'admin') {
+            const newMsg = payload.new;
+            const container = document.getElementById('adminChatMessages');
+            if (container) {
+                const div = renderChatMessage(newMsg, guestName, true);
+                container.appendChild(div);
+                container.scrollTop = container.scrollHeight;
+            }
+            await markMessagesAsRead(convId, currentUser.id);
+            updateAdminNotification();
+        }
+    }).subscribe();
+    const adminReplyInput = document.getElementById('adminChatReply');
+    if (adminReplyInput) {
+        adminReplyInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendAdminReply();
+            }
+        });
+        adminReplyInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+    }
+    updateAdminNotification();
+}
+async function sendAdminReply() {
+    if (!window.adminCurrentConvId) return;
+    const input = document.getElementById('adminChatReply');
+    const message = input.value.trim();
+    if (!message) return;
+    input.value = '';
+    input.style.height = 'auto';
+    const tempId = 'temp_' + Date.now();
+    const tempMsg = { id: tempId, sender_type: 'admin', message, created_at: getLocalDateTimeString(), is_read: false };
+    const container = document.getElementById('adminChatMessages');
+    if (container) {
+        const div = renderChatMessage(tempMsg, '', true);
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+    }
+    const { data, error } = await mySupabase.from('messages').insert({
+        conversation_id: window.adminCurrentConvId,
+        sender_type: 'admin',
+        sender_id: currentUser.id,
+        message: message,
+        created_at: getLocalDateTimeString(),
+        is_read: false
+    }).select().single();
+    if (error) {
+        showErrorModal('فشل إرسال الرسالة');
+        const tempDiv = document.querySelector(`.message-bubble[data-msg-id="${tempId}"]`);
+        if (tempDiv) tempDiv.remove();
+        return;
+    }
+    const tempDiv = document.querySelector(`.message-bubble[data-msg-id="${tempId}"]`);
+    if (tempDiv) tempDiv.setAttribute('data-msg-id', data.id);
+    await mySupabase.from('conversations').update({ updated_at: getLocalDateTimeString() }).eq('id', window.adminCurrentConvId);
+    updateAdminNotification();
+}
+async function updateAdminNotificationCount() {
+    if (currentUser?.role !== 'admin') return;
+    const { data: conversations, error } = await mySupabase.from('conversations').select('id').eq('status', 'open');
+    if (error) return;
+    let totalUnread = 0;
+    for (const conv of conversations) {
+        const { data: messages, error: msgError } = await mySupabase.from('messages').select('id', { count: 'exact' }).eq('conversation_id', conv.id).eq('is_read', false).neq('sender_type', 'admin');
+        if (!msgError && messages) totalUnread += messages.length;
+    }
+    const badge = document.getElementById('adminChatNotification');
+    if (totalUnread > 0) {
+        badge.style.display = 'inline-block';
+        badge.innerText = totalUnread;
+    } else {
+        badge.style.display = 'none';
+    }
+}
+async function showAdminChats() {
+    await loadAdminChats();
+    await updateAdminNotificationCount();
+    document.getElementById('adminChatList').style.display = 'block';
+    document.getElementById('adminChatDetail').style.display = 'none';
+    document.getElementById('adminChatModal').style.display = 'flex';
+}
+async function loadAdminChats() {
+    try {
+        const { data: conversations, error } = await mySupabase
+            .from('conversations')
+            .select(`
+                id,
+                user_id,
+                visitor_token,
+                visitor_name,
+                created_at,
+                updated_at,
+                users:user_id (name),
+                last_message:messages!inner(created_at, message, is_read, sender_type)
+            `)
+            .eq('status', 'open')
+            .order('updated_at', { ascending: false });
+        if (error) throw error;
+        if (!conversations || conversations.length === 0) {
+            document.getElementById('adminChatList').innerHTML = '<p>لا توجد محادثات بعد</p>';
+            return;
+        }
+        const convIds = conversations.map(c => c.id);
+        let unreadMap = new Map();
+        if (convIds.length > 0) {
+            const { data: unreadMsgs } = await mySupabase
+                .from('messages')
+                .select('conversation_id')
+                .in('conversation_id', convIds)
+                .eq('is_read', false)
+                .neq('sender_type', 'admin');
+            if (unreadMsgs) {
+                const counts = {};
+                unreadMsgs.forEach(msg => { counts[msg.conversation_id] = (counts[msg.conversation_id] || 0) + 1; });
+                for (const [id, cnt] of Object.entries(counts)) unreadMap.set(parseInt(id), cnt);
+            }
+        }
+        let html = '';
+        for (const conv of conversations) {
+            let userInfo = '';
+            if (conv.user_id) {
+                userInfo = conv.users?.[0]?.name || `مستخدم رقم ${conv.user_id}`;
+            } else {
+                userInfo = conv.visitor_name || `زائر (${conv.visitor_token?.substring(0,8)})`;
+            }
+            const unreadCount = unreadMap.get(conv.id) || 0;
+            const lastMsg = conv.last_message?.[0];
+            const lastMsgText = lastMsg ? (lastMsg.sender_type === 'admin' ? 'أنت: ' : '') + (lastMsg.message.length > 30 ? lastMsg.message.substring(0,30)+'...' : lastMsg.message) : '';
+            const lastMsgTime = lastMsg ? formatMessageTime(lastMsg.created_at) : '';
+            const badgeHtml = unreadCount > 0 ? `<span class="conv-unread">${unreadCount}</span>` : '';
+            html += `<div class="chat-item card" style="margin-bottom:10px; cursor:pointer;" onclick="openAdminConversationDetail(${conv.id})">
+                        <div style="flex:1;">
+                            <div><strong>${userInfo}</strong> ${badgeHtml}</div>
+                            <div style="font-size:0.8rem; color:#666;">${lastMsgText}</div>
+                        </div>
+                        <div style="font-size:0.7rem; color:#999;">${lastMsgTime}</div>
+                    </div>`;
+        }
+        document.getElementById('adminChatList').innerHTML = html;
+    } catch(e) {
+        console.error(e);
+        document.getElementById('adminChatList').innerHTML = '<p>حدث خطأ في تحميل المحادثات</p>';
+    }
+}
+async function openAdminConversationDetail(convId) {
+    if (window.adminChannel) await mySupabase.removeChannel(window.adminChannel);
+    if (window.adminPollInterval) clearInterval(window.adminPollInterval);
+    window.adminCurrentConvId = convId;
+    const messages = await loadMessages(convId, 1, 20);
+    const { data: conv } = await mySupabase.from('conversations').select('user_id, visitor_token, visitor_name').eq('id', convId).single();
+    let guestName = '';
+    if (conv.user_id) {
+        const { data: user } = await mySupabase.from('users').select('name').eq('id', conv.user_id).single();
+        guestName = user ? user.name : 'مستخدم';
+    } else {
+        guestName = conv.visitor_name || 'زائر';
+    }
+    const messagesHtml = `<div class="chat-container" id="adminChatMessages" style="max-height: 300px; overflow-y: auto; background: #efeae2;"></div>
+                          <div class="chat-input-wrapper" style="margin-top:10px;">
+                              <textarea id="adminChatReply" placeholder="اكتب ردك..." rows="1"></textarea>
+                              <button onclick="sendAdminReply()">إرسال</button>
+                          </div>`;
+    document.getElementById('adminChatDetail').innerHTML = `<h4>المحادثة مع: ${guestName}</h4>${messagesHtml}`;
+    await renderChatMessages(messages, guestName, false, true);
+    await markMessagesAsRead(convId, currentUser.id);
+    // إخفاء قائمة المحادثات وإظهار التفاصيل فقط
+    document.getElementById('adminChatList').style.display = 'none';
+    document.getElementById('adminChatDetail').style.display = 'block';
+    document.getElementById('adminChatModal').style.display = 'flex';
+    
+    window.adminChannel = mySupabase.channel(`admin-chat-${convId}`).on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${convId}`
+    }, async (payload) => {
+        if (payload.new.sender_type !== 'admin') {
+            const newMsg = payload.new;
+            const container = document.getElementById('adminChatMessages');
+            if (container) {
+                const div = renderChatMessage(newMsg, guestName, true);
+                container.appendChild(div);
+                container.scrollTop = container.scrollHeight;
+            }
+            await markMessagesAsRead(convId, currentUser.id);
+            updateAdminNotification();
+            loadAdminChats();
+        }
+    }).subscribe();
+    const adminReplyInput = document.getElementById('adminChatReply');
+    if (adminReplyInput) {
+        adminReplyInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendAdminReply();
+            }
+        });
+        adminReplyInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+    }
+    loadAdminChats();
+    updateAdminNotificationCount();
+    updateAdminNotification();
+}
+async function openChatForUser(userId, userName) {
+    const convId = await getOrCreateConversationForUser(userId);
+    currentConversationId = convId;
+    currentGuestUserId = userId;
+    currentGuestUserName = userName;
+    const messages = await loadMessages(convId, 1, 20);
+    await renderChatMessages(messages, userName, false, false);
+    await markMessagesAsRead(convId, userId);
+    document.getElementById('chatModal').style.display = 'flex';
+    if (chatChannel) await mySupabase.removeChannel(chatChannel);
+    chatChannel = mySupabase.channel(`chat-${convId}`).on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${convId}`
+    }, async (payload) => {
+        if (payload.new.sender_type !== 'user') {
+            const newMsg = payload.new;
+            const container = document.getElementById('chatMessages');
+            if (container) {
+                const div = renderChatMessage(newMsg, userName, false);
+                container.appendChild(div);
+                container.scrollTop = container.scrollHeight;
+            }
+            await markMessagesAsRead(convId, userId);
+            await updateUserNotificationBadge();
+            if (currentUser && currentUser.role === 'admin') updateAdminNotification();
+        }
+    }).subscribe();
+    if (chatPollInterval) clearInterval(chatPollInterval);
+    chatPollInterval = setInterval(async () => {
+        if (currentConversationId && document.getElementById('chatModal').style.display === 'flex') {
+            const newMessages = await loadMessages(currentConversationId, 1, 9999);
+            const currentCount = document.querySelectorAll('#chatMessages .message-bubble').length;
+            if (newMessages.length !== currentCount) {
+                await renderChatMessages(newMessages, userName, false, false);
+                await markMessagesAsRead(currentConversationId, userId);
+                await updateUserNotificationBadge();
+            }
+        }
+    }, 5000);
+    await updateUserNotificationBadge();
+}
+async function sendUserMessage() {
+    const input = document.getElementById('chatInput');
+    const message = input.value.trim();
+    if (!message) return;
+    if (!currentConversationId || !currentGuestUserId) {
+        showErrorModal('لم يتم العثور على المحادثة');
+        return;
+    }
+    const tempId = 'temp_' + Date.now();
+    const tempMsg = { id: tempId, sender_type: 'user', message, created_at: getLocalDateTimeString(), is_read: false };
+    const container = document.getElementById('chatMessages');
+    if (container) {
+        const div = renderChatMessage(tempMsg, currentGuestUserName, false);
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+    }
+    input.value = '';
+    input.style.height = 'auto';
+    const { data, error } = await mySupabase.from('messages').insert({
+        conversation_id: currentConversationId,
+        sender_type: 'user',
+        sender_id: currentGuestUserId,
+        message: message,
+        created_at: getLocalDateTimeString(),
+        is_read: false
+    }).select().single();
+    if (error) {
+        showErrorModal('فشل إرسال الرسالة');
+        const tempDiv = document.querySelector(`.message-bubble[data-msg-id="${tempId}"]`);
+        if (tempDiv) tempDiv.remove();
+        return;
+    }
+    const tempDiv = document.querySelector(`.message-bubble[data-msg-id="${tempId}"]`);
+    if (tempDiv) tempDiv.setAttribute('data-msg-id', data.id);
+    if (currentUser && currentUser.role === 'admin') updateAdminNotification();
+    else updateUserNotificationBadge();
+}
+async function openChatForLoggedInUser() {
+    if (!currentUser) {
+        document.getElementById('visitorNameModal').style.display = 'flex';
+        return;
+    }
+    await openChatForUser(currentUser.id, currentUser.name);
+}
+async function verifyAndStartConversation(username) {
+    if (!username) { showErrorModal('الرجاء إدخال اسم المستخدم'); return false; }
+    const { data: user, error } = await mySupabase.from('users').select('id, name').eq('username', username).maybeSingle();
+    if (error || !user) {
+        showErrorModal('اسم المستخدم غير موجود. تأكد من أنك مسجل في النظام.');
+        return false;
+    }
+    await openChatForUser(user.id, user.name);
+    closeModal('visitorNameModal');
+    return true;
+}
+function setupChatInput() {
+    const input = document.getElementById('chatInput');
+    if (!input) return;
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendUserMessage();
+        }
+    });
+    input.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
+}
+
+// ==================== التنقل بين الواجهات ====================
+function showMainMenu() {
+    document.getElementById('mainMenu').classList.remove('hidden');
+    document.getElementById('loginPage').classList.add('hidden');
+    document.getElementById('searchPage').classList.add('hidden');
+    document.getElementById('meterPage').classList.add('hidden');
+    document.getElementById('adminPage').classList.add('hidden');
+    document.getElementById('welcomeMsg').innerText = `مرحباً ${currentUser.name}`;
+    const adminBtn = document.getElementById('adminDashboardBtn');
+    if (currentUser.role === 'admin') adminBtn.classList.remove('hidden'); else adminBtn.classList.add('hidden');
+    if (currentUser.role === 'admin') {
+        updateAdminNotification();
+        updateAdminNotificationCount();
+    }
+    updateUserNotificationBadge();
+}
+
+// ==================== ربط الأحداث ====================
+document.getElementById('doLoginBtn').onclick = async () => {
+    const un = document.getElementById('loginUsername').value.trim(), pw = document.getElementById('loginPassword').value;
+    if (await login(un, pw)) { showMainMenu(); await loadDataFromDB(); checkForUpdates(); }
+};
+document.getElementById('goToSearchBtn').onclick = async () => {
+    document.getElementById('searchPage').classList.remove('hidden');
+    document.getElementById('meterPage').classList.add('hidden');
+    document.getElementById('adminPage').classList.add('hidden');
+    if (!excelData.length) await loadDataFromDB();
+    if (currentUser.role === 'admin') { document.getElementById('filtersContainer').classList.remove('hidden'); updateFilterOptions(); }
+    else document.getElementById('filtersContainer').classList.add('hidden');
+};
+document.getElementById('goToMeterBtn').onclick = () => {
+    document.getElementById('meterPage').classList.remove('hidden');
+    document.getElementById('searchPage').classList.add('hidden');
+    document.getElementById('adminPage').classList.add('hidden');
+    updateSubscriberInfo();
+};
+document.getElementById('adminDashboardBtn').onclick = async () => { if (currentUser?.role !== 'admin') { showErrorModal('هذه الصفحة مخصصة للمدير فقط'); return; } document.getElementById('adminPage').classList.remove('hidden'); document.getElementById('searchPage').classList.add('hidden'); document.getElementById('meterPage').classList.add('hidden'); await loadUsersForAdmin(); };
+document.getElementById('backToMenuFromSearch').onclick = showMainMenu;
+document.getElementById('backToMenuFromMeter').onclick = showMainMenu;
+document.getElementById('backToMenuFromAdmin').onclick = showMainMenu;
+document.getElementById('searchButton').onclick = async () => { const type = document.getElementById('searchType').value, query = document.getElementById('searchInput').value.trim(); if (!query) { showErrorModal('أدخل قيمة البحث'); return; } const results = await performSearch(type, query); if (results.length) { showResultsInModal(results, currentUser.role); } else { showErrorModal('لم يتم العثور على مشترك'); } };
+document.getElementById('showSearchLogsFromMenu').onclick = showSearchLogsModal;
+document.getElementById('showMeterLogsFromMenu').onclick = showMeterLogsModal;
+document.getElementById('shareResultBtn').onclick = shareCurrentResult;
+document.getElementById('saveMeterBtn').onclick = async () => { if (await saveMeterCheck()) startTimer(); };
+document.getElementById('stopTimerBtn').onclick = stopTimer;
+document.getElementById('clearMeterBtn').onclick = clearMeterFields;
+document.getElementById('uploadExcelBtn').onclick = () => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.xlsx,.xls'; inp.onchange = e => uploadExcel(e.target.files[0]); inp.click(); };
+document.getElementById('meterNumber').addEventListener('input', updateSubscriberInfo);
+document.getElementById('resetFiltersBtn')?.addEventListener('click', () => { document.getElementById('villageFilter').value = ''; document.getElementById('meterTypeFilter').value = ''; document.getElementById('tariffFilter').value = ''; });
+document.querySelectorAll('input[name="phase"]').forEach(radio => { radio.addEventListener('change', () => { togglePhaseDiv(); }); });
+document.getElementById('openChatBtnLogin').onclick = () => { document.getElementById('visitorNameModal').style.display = 'flex'; };
+document.getElementById('openChatBtnMenu').onclick = openChatForLoggedInUser;
+document.getElementById('sendChatBtn').onclick = sendUserMessage;
+document.getElementById('verifyVisitorNameBtn').onclick = async () => {
+    const username = document.getElementById('visitorNameInput').value.trim();
+    if (!username) { showErrorModal("الرجاء إدخال اسم المستخدم"); return; }
+    await verifyAndStartConversation(username);
+};
+setupChatInput();
+if (restoreSession()) { showMainMenu(); loadDataFromDB().then(() => checkForUpdates()); }
+
+window.updateAdminNotification = updateAdminNotification;
+</script>
+</body>
+</html>
